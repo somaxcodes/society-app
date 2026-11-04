@@ -9,3 +9,7 @@
 
 ## 2026-11-04
 - Login shows the same error for "no such email" and "wrong password" — prevents attackers from discovering which emails are registered residents.
+
+## 2026-11-04 (deploy)
+- Deployed to Render: https://society-app-4t15.onrender.com
+- Known limitation: free tier has no persistent disk, so SQLite resets on restart/inactivity. Fixed by auto-seeding on startup if the database is empty (see main.py).
