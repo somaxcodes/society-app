@@ -195,6 +195,42 @@ def bills_page(
     )
 
 
+@app.get("/staff/dashboard")
+def staff_dashboard(
+    request: Request,
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    flats = db.query(Flat).all()
+
+    total_collections = 0
+    overdue_flats = []
+
+    for flat in flats:
+        for bill in flat.bills:
+            total_collections += bill.amount_paid
+
+            is_overdue = bill.due_date < date.today() and bill.amount_paid < bill.amount_due
+            if is_overdue:
+                overdue_flats.append(
+                    {
+                        "flat_number": flat.flat_number,
+                        "owner_name": flat.owner_name,
+                        "outstanding": bill.amount_due - bill.amount_paid,
+                        "days_overdue": (date.today() - bill.due_date).days,
+                    }
+                )
+
+    return templates.TemplateResponse(
+        request,
+        "staff_dashboard.html",
+        {
+            "total_collections": total_collections,
+            "overdue_flats": overdue_flats,
+        },
+    )
+
+
 @app.post("/bills/pay")
 def pay_bill(
     request: Request,

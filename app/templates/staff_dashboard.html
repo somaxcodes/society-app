@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Staff Dashboard</title>
+</head>
+<body>
+    <h1>Staff Dashboard</h1>
+
+    <p>Total collections: {{ total_collections }}</p>
+
+    <h2>Overdue Flats</h2>
+    <table border="1">
+        <tr>
+            <th>Flat Number</th>
+            <th>Owner Name</th>
+            <th>Outstanding</th>
+            <th>Days Overdue</th>
+        </tr>
+        {% for flat in overdue_flats %}
+        <tr>
+            <td>{{ flat.flat_number }}</td>
+            <td>{{ flat.owner_name }}</td>
+            <td>{{ flat.outstanding }}</td>
+            <td>{{ flat.days_overdue }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
