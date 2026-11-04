@@ -2,6 +2,7 @@
 # starts the FastAPI web server and defines the web pages/routes.
 
 import os
+from datetime import date
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
@@ -13,13 +14,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.auth import verify_password
 from app.database import Base, engine, get_db
 
-# We import Bill, Flat, User here even though we never use them by name in
-# this file. Why: Base.metadata.create_all() below only creates tables for
-# models that Python has actually "seen" (imported) somewhere. If we didn't
-# import them here, Python might never load app/models.py, and create_all
-# would create ZERO tables, silently. The "# noqa: F401" comment just tells
-# code-checking tools "yes, I know this import looks unused, that's on purpose".
-from app.models import Bill, Flat, User  # noqa: F401
+from app.models import Bill, Flat, User
 
 # This line runs once, when the app starts up. It checks society.db: for
 # every table that doesn't exist yet (users, flats, bills), it creates it.
@@ -148,3 +143,82 @@ def staff_only(user: User = Depends(require_role("staff"))):
 @app.get("/me")
 def me(user: User = Depends(get_current_user)):
     return {"email": user.email, "role": user.role}
+
+
+@app.get("/bills")
+def bills_page(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    # Staff don't have a flat_id, so there's nothing to look up for them.
+    # We show a plain message instead of letting the query below crash on
+    # flat_id=None (which would just find no flat and still need handling).
+    if user.flat_id is None:
+        return templates.TemplateResponse(
+            request,
+            "bills.html",
+            {"no_flat": True},
+        )
+
+    flat = db.query(Flat).filter(Flat.id == user.flat_id).first()
+    # A flat always has exactly one bill in our current sample data, so we
+    # grab the first (and only) one. first() on a list, not a list, is a
+    # SQLAlchemy stand-in for "get one row or None".
+    bill = db.query(Bill).filter(Bill.flat_id == flat.id).first()
+
+    outstanding = bill.amount_due - bill.amount_paid
+    # max(0, ...) means "never negative" — if the bill isn't overdue yet,
+    # due_date is in the future, and (today - due_date) would be negative.
+    days_overdue = max(0, (date.today() - bill.due_date).days)
+
+    return templates.TemplateResponse(
+        request,
+        "bills.html",
+        {
+            "flat": flat,
+            "bill": bill,
+            "outstanding": outstanding,
+            "days_overdue": days_overdue,
+        },
+    )
+
+
+@app.post("/bills/pay")
+def pay_bill(
+    request: Request,
+    amount: float = Form(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if user.flat_id is None:
+        return templates.TemplateResponse(
+            request,
+            "bills.html",
+            {"no_flat": True},
+        )
+
+    flat = db.query(Flat).filter(Flat.id == user.flat_id).first()
+    bill = db.query(Bill).filter(Bill.flat_id == flat.id).first()
+    outstanding = bill.amount_due - bill.amount_paid
+    days_overdue = max(0, (date.today() - bill.due_date).days)
+
+    # Re-render the same page with an error instead of applying a payment
+    # that doesn't make sense (nothing paid, or paying more than is owed).
+    if amount <= 0 or amount > outstanding:
+        return templates.TemplateResponse(
+            request,
+            "bills.html",
+            {
+                "flat": flat,
+                "bill": bill,
+                "outstanding": outstanding,
+                "days_overdue": days_overdue,
+                "error": "Enter an amount greater than 0 and no more than the outstanding balance",
+            },
+        )
+
+    bill.amount_paid += amount
+    db.commit()
+
+    return RedirectResponse(url="/bills", status_code=303)
