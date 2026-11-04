@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Society App{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+</head>
+<body>
+    <nav class="container">
+        <ul>
+            <li><a href="/"><strong>Society App</strong></a></li>
+        </ul>
+        <ul>
+            {% if request.session.get('user_id') %}
+                {% if request.session.get('role') == 'resident' %}
+                <li><a href="/bills">Bills</a></li>
+                {% elif request.session.get('role') == 'staff' %}
+                <li><a href="/staff/dashboard">Staff Dashboard</a></li>
+                {% endif %}
+                <li><a href="/logout">Logout</a></li>
+            {% else %}
+                <li><a href="/login">Login</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

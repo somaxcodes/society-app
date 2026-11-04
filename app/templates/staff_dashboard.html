@@ -1,16 +1,14 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Staff Dashboard</title>
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Staff Dashboard{% endblock %}
+
+{% block content %}
     <h1>Staff Dashboard</h1>
 
     <p>Total collections: {{ total_collections }}</p>
 
     <h2>Overdue Flats</h2>
-    <table border="1">
+    <table>
         <tr>
             <th>Flat Number</th>
             <th>Owner Name</th>
@@ -26,5 +24,4 @@
         </tr>
         {% endfor %}
     </table>
-</body>
-</html>
+{% endblock %}

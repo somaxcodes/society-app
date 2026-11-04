@@ -1,10 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>My Bills</title>
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}My Bills{% endblock %}
+
+{% block content %}
     <h1>My Bills</h1>
 
     {% if no_flat %}
@@ -31,5 +29,4 @@
     </form>
 
     {% endif %}
-</body>
-</html>
+{% endblock %}
