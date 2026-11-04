@@ -36,6 +36,7 @@ flats_data = [
         "upi_id": "neeraj.kulkarni@upi",
         "amount_paid": 7475,
         "due_date": date.today(),  # bill due today, fully paid, 0 days overdue
+        "resident_email": "neeraj@test.com",
     },
     {
         "flat_number": "T12-0408",
@@ -44,6 +45,7 @@ flats_data = [
         "upi_id": "swati.joshi@upi",
         "amount_paid": 0,
         "due_date": date.today() - timedelta(days=47),  # 47 days overdue, nothing paid
+        "resident_email": "swati@test.com",
     },
     {
         "flat_number": "T21-1601",
@@ -52,6 +54,7 @@ flats_data = [
         "upi_id": "aamir.shaikh@upi",
         "amount_paid": 5000,
         "due_date": date.today() - timedelta(days=18),  # 18 days overdue, partially paid
+        "resident_email": "aamir@test.com",
     },
 ]
 
@@ -86,6 +89,17 @@ for data in flats_data:
         due_date=data["due_date"],
     )
     db.add(bill)
+
+    # Step 3: create the resident's login account for this flat, linked
+    # via flat_id (same flat.id we just got from the flush() above).
+    resident = User(
+        email=data["resident_email"],
+        hashed_password=hash_password("resident123"),
+        role="resident",
+        flat_id=flat.id,
+    )
+    db.add(resident)
+
     inserted_count += 1
 
 # Now actually save everything we staged above (1 staff user + 3 flats +
@@ -95,4 +109,4 @@ db.commit()
 # Close the conversation with the database — good practice once we're done.
 db.close()
 
-print(f"Inserted {inserted_count} flats with bills, plus 1 staff user.")
+print(f"Inserted {inserted_count} flats with bills and resident accounts, plus 1 staff user.")

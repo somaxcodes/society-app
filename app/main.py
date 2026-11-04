@@ -4,7 +4,7 @@
 import os
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -99,3 +99,52 @@ def login(
     # a page directly. Both roles go to "/" for now — once we build
     # separate resident/staff pages, this is where we'd branch on role.
     return RedirectResponse(url="/", status_code=303)
+
+
+def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
+    # A FastAPI dependency can't redirect the browser to the login page —
+    # it can only let the route run or stop it by raising an exception.
+    # 401 Unauthorized is the standard status for "you need to log in".
+    user_id = request.session.get("user_id")
+    if user_id is None:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    # The session only stores the id, not the whole user, so every request
+    # we look the current row up fresh — this also covers the case where
+    # the user was deleted after they logged in.
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=401, detail="Not logged in")
+
+    return user
+
+
+def require_role(role: str):
+    # require_role("staff") doesn't check anything itself — it returns a
+    # new function (dependency) that does. That's what lets us write
+    # Depends(require_role("staff")) on a route: FastAPI calls that inner
+    # function per-request, and it closes over "role" from here.
+    def dependency(user: User = Depends(get_current_user)) -> User:
+        if user.role != role:
+            raise HTTPException(status_code=403, detail="Forbidden")
+        return user
+
+    return dependency
+
+
+@app.get("/logout")
+def logout(request: Request):
+    # .clear() wipes everything we stored in the session cookie (user_id,
+    # role), so the next request looks "logged out" again.
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
+
+
+@app.get("/staff-only")
+def staff_only(user: User = Depends(require_role("staff"))):
+    return {"message": "you are staff"}
+
+
+@app.get("/me")
+def me(user: User = Depends(get_current_user)):
+    return {"email": user.email, "role": user.role}

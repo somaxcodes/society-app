@@ -22,6 +22,10 @@ class User(Base):
     hashed_password: Mapped[str]  # NEVER store the real password, only a hashed (scrambled) version
     role: Mapped[str]  # "resident" or "staff" — decides what the user is allowed to do
 
+    # int | None means this column can be NULL. It's nullable because staff
+    # users aren't tied to any flat — only residents are.
+    flat_id: Mapped[int | None] = mapped_column(ForeignKey("flats.id"), nullable=True)
+
 
 # Table: flats
 # One row per flat in the township (2,400 of them in the real scenario,
