@@ -5,7 +5,7 @@
 
 from datetime import date
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import CheckConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -66,3 +66,41 @@ class Bill(Base):
     # The reverse shortcut of Flat.bills above: lets us write `bill.flat`
     # in Python to get the Flat this bill belongs to, instead of a query.
     flat: Mapped["Flat"] = relationship(back_populates="bills")
+
+
+# Table: bank_payments
+# One row per line in a bank statement CSV we import, before and after we
+# try to match it to a flat. The matching logic itself lives elsewhere —
+# this table just holds the raw row plus whatever that logic decided.
+class BankPayment(Base):
+    __tablename__ = "bank_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # These four columns are the raw statement row, copied as-is from the
+    # bank CSV (see sample_data/bank_statement_sample.csv).
+    date: Mapped[date]
+    amount: Mapped[float]
+    # unique=True + index=True: this is also how we detect duplicate rows —
+    # the same reference showing up twice means it's already been imported.
+    reference: Mapped[str] = mapped_column(unique=True, index=True)
+    upi_id: Mapped[str]
+
+    # Which flat the matching logic decided this payment belongs to.
+    # Nullable because a "needs_review" or "duplicate" row may never get
+    # matched to a flat at all.
+    matched_flat_id: Mapped[int | None] = mapped_column(ForeignKey("flats.id"), nullable=True)
+
+    # "matched", "needs_review", or "duplicate" — set by the matching logic.
+    # The CheckConstraint below stops any other value from ever being saved,
+    # so a typo in the matching code fails loudly instead of writing a
+    # status that the rest of the app silently doesn't recognize.
+    status: Mapped[str]
+
+    # Human-readable explanation of why this row got that status, e.g.
+    # "exact flat number and UPI match" or "duplicate of row 7 (same reference)".
+    reason: Mapped[str]
+
+    __table_args__ = (
+        CheckConstraint("status IN ('matched', 'needs_review', 'duplicate')", name="ck_bank_payments_status"),
+    )

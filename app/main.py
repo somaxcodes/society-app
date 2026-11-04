@@ -16,6 +16,12 @@ from app.database import Base, SessionLocal, engine, get_db
 
 from app.models import Bill, Flat, User
 
+# load_dotenv() reads the .env file in the project root and makes its
+# values available via os.getenv(), as if they were set in the environment.
+# .env is in .gitignore on purpose: it holds secrets that shouldn't be
+# committed to git. This has to run before anything below reads an env var.
+load_dotenv()
+
 # This line runs once, when the app starts up. It checks society.db: for
 # every table that doesn't exist yet (users, flats, bills), it creates it.
 # If the tables already exist, it does nothing to them (it won't update
@@ -33,12 +39,6 @@ if seed_check_db.query(Flat).count() == 0:
     run_seed(seed_check_db)
 seed_check_db.close()
 
-# load_dotenv() reads the .env file in the project root and makes its
-# values available via os.getenv(), as if they were set in the environment.
-# .env is in .gitignore on purpose: it holds secrets that shouldn't be
-# committed to git.
-load_dotenv()
-
 # This is the actual FastAPI application object. Everything below this
 # line is defining what the app can do.
 app = FastAPI()
@@ -48,7 +48,14 @@ app = FastAPI()
 # requests. "Signed" means the cookie's contents can't be tampered with
 # without knowing secret_key — that's why secret_key comes from .env instead
 # of being hardcoded here.
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
+secret_key = os.getenv("SECRET_KEY")
+if not secret_key:
+    # Failing loudly here beats the alternative: SessionMiddleware silently
+    # accepting None/"" and signing every session cookie with a key anyone
+    # could guess, which would let someone forge a logged-in session.
+    raise RuntimeError("SECRET_KEY not set in .env")
+
+app.add_middleware(SessionMiddleware, secret_key=secret_key)
 
 # Jinja2Templates lets us render .html files from app/templates/ as actual
 # web pages, instead of just returning JSON like the "/" route below does.
