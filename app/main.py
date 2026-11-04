@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import verify_password
-from app.database import Base, engine, get_db
+from app.database import Base, SessionLocal, engine, get_db
 
 from app.models import Bill, Flat, User
 
@@ -21,6 +21,17 @@ from app.models import Bill, Flat, User
 # If the tables already exist, it does nothing to them (it won't update
 # a table even if we've changed the model since — more on that if we hit it).
 Base.metadata.create_all(bind=engine)
+
+# If the database is brand new (no flats yet), fill it with sample data so
+# there's something to log in and test with. This only ever runs once per
+# database file — once seeded, Flat.count() is no longer 0, so later app
+# startups skip this entirely.
+seed_check_db = SessionLocal()
+if seed_check_db.query(Flat).count() == 0:
+    from app.seed import run_seed
+
+    run_seed(seed_check_db)
+seed_check_db.close()
 
 # load_dotenv() reads the .env file in the project root and makes its
 # values available via os.getenv(), as if they were set in the environment.
