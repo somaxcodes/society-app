@@ -6,3 +6,6 @@
 - **CSS**: Pico.css + custom CSS. Reason: mobile-friendly out of the box, no build step needed.
 - **AI**: Groq API for complaint classification. Reason: brief specified it.
 - **Deploy**: Render free tier. Reason: simple Git-based deploy, free.
+
+## 2026-11-04
+- Login shows the same error for "no such email" and "wrong password" — prevents attackers from discovering which emails are registered residents.

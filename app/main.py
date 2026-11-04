@@ -1,9 +1,17 @@
 # This is the entry point of the whole app — the file that actually
 # starts the FastAPI web server and defines the web pages/routes.
 
-from fastapi import FastAPI
+import os
 
-from app.database import Base, engine
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Form, Request
+from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+from starlette.middleware.sessions import SessionMiddleware
+
+from app.auth import verify_password
+from app.database import Base, engine, get_db
 
 # We import Bill, Flat, User here even though we never use them by name in
 # this file. Why: Base.metadata.create_all() below only creates tables for
@@ -19,9 +27,26 @@ from app.models import Bill, Flat, User  # noqa: F401
 # a table even if we've changed the model since — more on that if we hit it).
 Base.metadata.create_all(bind=engine)
 
+# load_dotenv() reads the .env file in the project root and makes its
+# values available via os.getenv(), as if they were set in the environment.
+# .env is in .gitignore on purpose: it holds secrets that shouldn't be
+# committed to git.
+load_dotenv()
+
 # This is the actual FastAPI application object. Everything below this
 # line is defining what the app can do.
 app = FastAPI()
+
+# SessionMiddleware lets us store small bits of data (like "this browser is
+# logged in as user X") in a signed cookie on the user's browser, between
+# requests. "Signed" means the cookie's contents can't be tampered with
+# without knowing secret_key — that's why secret_key comes from .env instead
+# of being hardcoded here.
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY"))
+
+# Jinja2Templates lets us render .html files from app/templates/ as actual
+# web pages, instead of just returning JSON like the "/" route below does.
+templates = Jinja2Templates(directory="app/templates")
 
 
 # @app.get("/") means: when someone visits the home page ("/") with a
@@ -29,3 +54,48 @@ app = FastAPI()
 @app.get("/")
 def home():
     return {"message": "hello from society app"}
+
+
+@app.get("/login")
+def login_page(request: Request):
+    # TemplateResponse needs "request" — Starlette uses it internally (e.g.
+    # for building URLs), so it's always the first argument passed in.
+    return templates.TemplateResponse(request, "login.html")
+
+
+@app.post("/login")
+def login(
+    request: Request,
+    email: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    # Form(...) means "read this field from the submitted form data" —
+    # that's what login.html's <input name="email"> / name="password">
+    # end up as. Depends(get_db) hands this route its own database session,
+    # same as every other route that needs to query the database.
+    user = db.query(User).filter(User.email == email).first()
+
+    # We check "user is None" and "password doesn't match" together, and
+    # give the exact same error message either way. If we said "no account
+    # with that email" vs "wrong password" separately, anyone could use
+    # that to figure out which emails have accounts — a small but real
+    # privacy leak.
+    if user is None or not verify_password(password, user.hashed_password):
+        return templates.TemplateResponse(
+            request,
+            "login.html",
+            {"error": "Invalid email or password"},
+        )
+
+    # request.session is the signed cookie SessionMiddleware set up. Writing
+    # to it here is what makes the browser "stay logged in" on later
+    # requests — every request carries the cookie back, and we can read
+    # request.session["user_id"] to know who's asking.
+    request.session["user_id"] = user.id
+    request.session["role"] = user.role
+
+    # RedirectResponse sends the browser to a new URL instead of returning
+    # a page directly. Both roles go to "/" for now — once we build
+    # separate resident/staff pages, this is where we'd branch on role.
+    return RedirectResponse(url="/", status_code=303)
