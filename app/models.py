@@ -138,6 +138,12 @@ class Complaint(Base):
 
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
 
+    # Set by the classification logic when a complaint's description
+    # suggests an immediate safety risk (e.g. gas leak, fire, exposed
+    # wiring) — lets staff surface these ahead of everything else,
+    # regardless of urgency/category.
+    is_safety_flagged: Mapped[bool] = mapped_column(default=False)
+
     __table_args__ = (
         CheckConstraint(
             "category IN ('plumbing', 'electrical', 'lift', 'security', 'cleaning', 'other')",
