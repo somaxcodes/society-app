@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block title %}Upload Bank Statement{% endblock %}
+
+{% block content %}
+    <h1>Upload Bank Statement</h1>
+
+    {% if error %}
+    <p style="color: red;">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/bank-upload" enctype="multipart/form-data">
+        <label for="file">Bank statement CSV</label>
+        <input type="file" id="file" name="file" accept=".csv" required>
+        <button type="submit">Upload</button>
+    </form>
+{% endblock %}

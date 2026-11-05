@@ -81,9 +81,12 @@ class BankPayment(Base):
     # bank CSV (see sample_data/bank_statement_sample.csv).
     date: Mapped[date]
     amount: Mapped[float]
-    # unique=True + index=True: this is also how we detect duplicate rows —
-    # the same reference showing up twice means it's already been imported.
-    reference: Mapped[str] = mapped_column(unique=True, index=True)
+    # Duplicate detection happens in app code (app/matching.py checks a row's
+    # reference against every reference already in this table), not via a
+    # DB constraint — a duplicate row still needs to be stored here (with
+    # status="duplicate") as an audit trail, so reference can't be unique.
+    # index=True keeps that "does this reference already exist" check fast.
+    reference: Mapped[str] = mapped_column(index=True)
     upi_id: Mapped[str]
 
     # Which flat the matching logic decided this payment belongs to.

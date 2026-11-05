@@ -16,6 +16,8 @@
                 <li><a href="/bills">Bills</a></li>
                 {% elif request.session.get('role') == 'staff' %}
                 <li><a href="/staff/dashboard">Staff Dashboard</a></li>
+                <li><a href="/bank-upload">Bank Upload</a></li>
+                <li><a href="/review-queue">Review Queue</a></li>
                 {% endif %}
                 <li><a href="/logout">Logout</a></li>
             {% else %}

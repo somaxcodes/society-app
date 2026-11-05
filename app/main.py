@@ -1,11 +1,13 @@
 # This is the entry point of the whole app — the file that actually
 # starts the FastAPI web server and defines the web pages/routes.
 
+import csv
+import io
 import os
-from datetime import date
+from datetime import date, datetime
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
@@ -13,8 +15,9 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import verify_password
 from app.database import Base, SessionLocal, engine, get_db
+from app.matching import match_payment, suggest_flat
 
-from app.models import Bill, Flat, User
+from app.models import BankPayment, Bill, Flat, User
 
 # load_dotenv() reads the .env file in the project root and makes its
 # values available via os.getenv(), as if they were set in the environment.
@@ -65,8 +68,15 @@ templates = Jinja2Templates(directory="app/templates")
 # @app.get("/") means: when someone visits the home page ("/") with a
 # normal browser visit (a GET request), run the function right below it.
 @app.get("/")
-def home():
-    return {"message": "hello from society app"}
+def home(request: Request):
+    role = request.session.get("role")
+
+    if role == "resident":
+        return RedirectResponse(url="/bills")
+    if role == "staff":
+        return RedirectResponse(url="/staff/dashboard")
+
+    return RedirectResponse(url="/login")
 
 
 @app.get("/login")
@@ -236,6 +246,153 @@ def staff_dashboard(
             "overdue_flats": overdue_flats,
         },
     )
+
+
+@app.get("/bank-upload")
+def bank_upload_page(request: Request, user: User = Depends(require_role("staff"))):
+    return templates.TemplateResponse(request, "bank_upload.html")
+
+
+@app.post("/bank-upload")
+def bank_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    # file.file is the plain Python file object FastAPI stores the upload
+    # in. Reading from it directly (instead of awaiting file.read()) is
+    # what lets this stay a regular sync "def" route, like every other
+    # route in this file.
+    #
+    # A non-CSV upload (e.g. a .docx or corrupted file) can fail in ways
+    # that are hard to enumerate up front — wrong encoding, binary bytes
+    # that choke decode(), etc. Catching broadly here and reporting the
+    # same "invalid format" message is simpler than guessing every way
+    # reading an arbitrary file can fail, and it's still what the user
+    # needs to know either way: "this isn't the file we expected."
+    try:
+        text = file.file.read().decode("utf-8")
+        reader = csv.DictReader(io.StringIO(text))
+        fieldnames = reader.fieldnames
+    except Exception:
+        return templates.TemplateResponse(
+            request,
+            "bank_upload.html",
+            {"error": "Invalid file format — expected columns: date, amount, reference, upi_id"},
+        )
+
+    expected_columns = ["date", "amount", "reference", "upi_id"]
+    if fieldnames != expected_columns:
+        return templates.TemplateResponse(
+            request,
+            "bank_upload.html",
+            {"error": "Invalid file format — expected columns: date, amount, reference, upi_id"},
+        )
+
+    # Every flat that has a bill, with that bill attached as `.bill`
+    # (singular) — that's the shape match_payment() expects (see
+    # app/matching.py). A flat with no bill at all can't be matched
+    # against, so it's left out of the candidate list entirely.
+    flats = [flat for flat in db.query(Flat).all() if flat.bills]
+    for flat in flats:
+        flat.bill = flat.bills[0]
+
+    # Duplicate detection needs to see every reference ever imported, not
+    # just this file's rows, so we seed it from the whole bank_payments
+    # table before processing a single row of the new upload.
+    existing_references = {row.reference for row in db.query(BankPayment.reference).all()}
+
+    counts = {"matched": 0, "needs_review": 0, "duplicate": 0}
+    needs_review_rows = []
+
+    for row in reader:
+        # Every value from csv.DictReader is a string — match_payment()
+        # does real arithmetic on the amount, so it has to become a float
+        # before we call it.
+        row["amount"] = float(row["amount"])
+
+        status, matched_flat_id, reason = match_payment(row, flats, existing_references)
+
+        db.add(
+            BankPayment(
+                date=datetime.strptime(row["date"], "%Y-%m-%d").date(),
+                amount=row["amount"],
+                reference=row["reference"],
+                upi_id=row["upi_id"],
+                matched_flat_id=matched_flat_id,
+                status=status,
+                reason=reason,
+            )
+        )
+
+        if status == "matched":
+            matched_flat = next(flat for flat in flats if flat.id == matched_flat_id)
+            matched_flat.bill.amount_paid += row["amount"]
+
+        if status == "needs_review":
+            needs_review_rows.append(
+                {
+                    "date": row["date"],
+                    "amount": row["amount"],
+                    "reference": row["reference"],
+                    "upi_id": row["upi_id"],
+                    "reason": reason,
+                }
+            )
+
+        counts[status] += 1
+
+        # Only added now, after this row has been checked against it — so
+        # a reference repeated twice within this same file still gets
+        # caught as a duplicate on its second occurrence.
+        existing_references.add(row["reference"])
+
+    db.commit()
+
+    return templates.TemplateResponse(
+        request,
+        "bank_upload_results.html",
+        {
+            "counts": counts,
+            "needs_review_rows": needs_review_rows,
+        },
+    )
+
+
+@app.get("/review-queue")
+def review_queue(
+    request: Request,
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    # Every row still waiting on a human, across every upload ever done —
+    # not just the one that was just processed.
+    needs_review = db.query(BankPayment).filter(BankPayment.status == "needs_review").all()
+
+    flats = db.query(Flat).all()
+
+    rows = []
+    for payment in needs_review:
+        # suggest_flat() is a best guess for display only — it does not
+        # change the payment's stored status or reason, and it's recomputed
+        # fresh each time this page loads so it reflects the current flats.
+        suggested_flat = suggest_flat(
+            {"reference": payment.reference, "upi_id": payment.upi_id}, flats
+        )
+        rows.append(
+            {
+                "date": payment.date,
+                "amount": payment.amount,
+                "reference": payment.reference,
+                "upi_id": payment.upi_id,
+                "reason": payment.reason,
+                "suggested_flat_number": suggested_flat.flat_number if suggested_flat else None,
+                "suggested_owner_name": suggested_flat.owner_name if suggested_flat else None,
+            }
+        )
+
+    return templates.TemplateResponse(request, "review_queue.html", {"rows": rows})
 
 
 @app.post("/bills/pay")

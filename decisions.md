@@ -13,3 +13,6 @@
 ## 2026-11-04 (deploy)
 - Deployed to Render: https://society-app-4t15.onrender.com
 - Known limitation: free tier has no persistent disk, so SQLite resets on restart/inactivity. Fixed by auto-seeding on startup if the database is empty (see main.py).
+
+## 2026-11-05
+- Removed DB-level unique constraint on BankPayment.reference to allow storing an audit row for every CSV row, including detected duplicates. Duplicate prevention is enforced in application code (checking existing references before matching), not at the database level.
