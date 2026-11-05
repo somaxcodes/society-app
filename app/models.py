@@ -3,7 +3,7 @@
 # app/database.py for what Base does). Each attribute inside the class
 # (like "email: Mapped[str]") becomes one column in that table.
 
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import CheckConstraint, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -106,4 +106,43 @@ class BankPayment(Base):
 
     __table_args__ = (
         CheckConstraint("status IN ('matched', 'needs_review', 'duplicate')", name="ck_bank_payments_status"),
+    )
+
+
+# Table: complaints
+# One row per resident complaint. The classification logic (category,
+# urgency, duplicate detection via linked_to_id) lives elsewhere — this
+# table just holds the complaint plus whatever that logic decided.
+class Complaint(Base):
+    __tablename__ = "complaints"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    # Which flat this complaint was raised from.
+    flat_id: Mapped[int] = mapped_column(ForeignKey("flats.id"))
+
+    description: Mapped[str]  # the resident's own free-text description of the issue
+
+    # Set by the (not-yet-written) classification logic.
+    category: Mapped[str]
+    urgency: Mapped[str]
+
+    # "Open", "In Progress", or "Resolved" — defaults to "Open" since every
+    # complaint starts out unhandled.
+    status: Mapped[str] = mapped_column(default="Open")
+
+    # Points at another Complaint's id when this one is a duplicate of an
+    # existing, already-open complaint (e.g. 5 residents reporting the same
+    # lift outage). Nullable because most complaints aren't duplicates.
+    linked_to_id: Mapped[int | None] = mapped_column(ForeignKey("complaints.id"), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+    __table_args__ = (
+        CheckConstraint(
+            "category IN ('plumbing', 'electrical', 'lift', 'security', 'cleaning', 'other')",
+            name="ck_complaints_category",
+        ),
+        CheckConstraint("urgency IN ('Low', 'Medium', 'High')", name="ck_complaints_urgency"),
+        CheckConstraint("status IN ('Open', 'In Progress', 'Resolved')", name="ck_complaints_status"),
     )
