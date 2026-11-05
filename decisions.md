@@ -16,3 +16,11 @@
 
 ## 2026-11-05
 - Removed DB-level unique constraint on BankPayment.reference to allow storing an audit row for every CSV row, including detected duplicates. Duplicate prevention is enforced in application code (checking existing references before matching), not at the database level.
+
+## 2026-11-05 (assumption)
+- Safety-word detection (fire, gas, lift stuck, shock) is a simple, literal keyword match with no context understanding — e.g. "fire exit door is squeaky" would be flagged just like a real fire. This is intentional, for these reasons:
+  - The brief requires these words to always escalate regardless of what the AI concludes ("whatever the AI says"), meaning the rule is meant to override smarter reasoning, not defer to it.
+  - False positive cost is low: a staff member reads a wrongly-flagged complaint and dismisses it in seconds.
+  - False negative cost is high: missing a genuinely dangerous complaint (a real gas leak, a real fire) could cause real harm.
+  - Given that asymmetry, over-triggering on purpose is safer than trying to be clever and risking a miss.
+- A separate visible "Safety Flagged" banner distinguishes these from ordinary High-urgency complaints, rather than relying on urgency alone.
