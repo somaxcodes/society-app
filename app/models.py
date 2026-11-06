@@ -146,7 +146,8 @@ class Complaint(Base):
 
     __table_args__ = (
         CheckConstraint(
-            "category IN ('plumbing', 'electrical', 'lift', 'security', 'cleaning', 'other')",
+            "category IN ('plumbing', 'electrical', 'lift', 'security', 'cleaning', "
+            "'safety', 'structural', 'parking', 'noise', 'other')",
             name="ck_complaints_category",
         ),
         CheckConstraint("urgency IN ('Low', 'Medium', 'High')", name="ck_complaints_urgency"),
