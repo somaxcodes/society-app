@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}My Complaints{% endblock %}
+
+{% block content %}
+    <h1>My Complaints</h1>
+
+    {% if rows %}
+    {% for row in rows %}
+    {% set complaint = row.complaint %}
+    <article id="complaint-{{ complaint.id }}">
+        {% if complaint.is_safety_flagged %}
+        <p style="background-color: red; color: white; padding: 0.5em; font-weight: bold;">
+            ⚠ SAFETY FLAGGED — this complaint has been flagged for immediate attention
+        </p>
+        {% endif %}
+
+        <p>{{ complaint.description }}</p>
+
+        <ul>
+            <li>Category: {{ complaint.category }}</li>
+            <li>Urgency: {{ complaint.urgency }}</li>
+            <li>Status: {{ complaint.status }}</li>
+            <li>Reported: {{ complaint.created_at }}</li>
+        </ul>
+
+        {% if row.linked_from %}
+        <p><em>Linked to an existing report: <a href="#complaint-{{ row.linked_from.id }}">"{{ row.linked_from.description }}" (reported {{ row.linked_from.created_at }})</a></em></p>
+        {% endif %}
+
+        {% if row.linked_duplicates %}
+        <p>{{ row.linked_duplicates|length }} other report(s) describe this same issue:</p>
+        <ul>
+            {% for duplicate in row.linked_duplicates %}
+            <li><a href="#complaint-{{ duplicate.id }}">"{{ duplicate.description }}" (reported {{ duplicate.created_at }})</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </article>
+    {% endfor %}
+    {% else %}
+    <p>You haven't raised any complaints yet.</p>
+    {% endif %}
+{% endblock %}
