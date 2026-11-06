@@ -21,7 +21,11 @@ def check_safety_flag(text: str) -> bool:
         "assault": ["assault", "asault", "assult"],
         "intruder": ["intruder", "intrudar", "intruderr"],
         "unconscious": ["unconscious", "unconcious"],
-        "bleeding": ["bleeding", "bleading", "bleed"],
+        "bleeding": ["bleeding", "bleading", "bleed", "bled"],
+        "flooding": ["flooding", "flood", "floood", "flooing"],
+        "collapse": ["collaps", "collapsed", "colapse", "colapsed"],
+        "trapped": ["trap", "trapped", "traped", "trappd"],
+        "electrocuted": ["electrocut", "electrocuted", "electrocution"],
     }
 
     for variants in standalone_words.values():
@@ -35,6 +39,8 @@ def check_safety_flag(text: str) -> bool:
     pairs = [
         (["lift", "lyft", "lft"], ["stuck", "stuk", "stck"]),
         (["gas", "gaz", "gass"], ["leak", "leek", "leack", "smell", "smel"]),
+        (["wire", "wires", "wyre"], ["spark", "sparking", "sparkin"]),
+        (["live", "livs"], ["wire", "wires", "wyre"]),
     ]
 
     for side_a_variants, side_b_variants in pairs:

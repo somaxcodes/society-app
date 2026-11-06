@@ -22,6 +22,17 @@ cases = [
     ("there is a g as le ak in the kitchen", True),  # space-separated
     ("g.as le-ak smell near the meter", True),  # punctuation-separated
     ("f,i,r,e in the lobby!!", True),  # comma-separated with trailing punctuation
+    ("There's a live wire hanging near the parking lot", True),
+    ("I live in flat T07-1203, my tap is leaking", False),  # "live" alone must NOT trigger
+    ("Water is flooding the basement", True),
+    ("The ceiling collapsed in the lobby", True),
+    ("Someone is trapped inside the lift", True),
+    ("Exposed wire sparking near the meter room", True),
+    ("Just asking about the wiring work schedule", False),  # "wire"-adjacent word alone must NOT trigger
+    ("The ceiling is collapsing", True),
+    ("Someone is trapping their pet lift door open", True),  # tests the trap stem, even in an odd sentence
+    ("Worried someone is getting electrocuted right now", True),
+    ("The security guard bled after the fall", True),
 ]
 
 for text, expected in cases:
