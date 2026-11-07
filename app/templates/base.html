@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/style.css?v={{ asset_version('style.css') }}">
 </head>
 <body>
+    <header class="site-header">
     <nav class="container">
         <ul>
             <li class="brand"><a href="/"><strong>Society App</strong></a></li>
@@ -30,6 +31,7 @@
             {% endif %}
         </ul>
     </nav>
+    </header>
 
     <main class="container">
         {% block content %}{% endblock %}

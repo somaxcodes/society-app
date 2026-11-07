@@ -5,67 +5,73 @@
 {% block content %}
     <h1>Staff Dashboard</h1>
 
-    <div class="stat-row">
-        <div>
-            <p class="stat-value">{{ total_collections|inr }}</p>
-            <p class="stat-label">Total collections</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ total_outstanding|inr }}</p>
-            <p class="stat-label">Outstanding dues</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ overdue_flats|length }}</p>
-            <p class="stat-label">Overdue flats</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ open_complaint_count }}</p>
-            <p class="stat-label">Open complaints</p>
+    <div class="card">
+        <div class="stat-row">
+            <div>
+                <p class="stat-value positive">{{ total_collections|inr }}</p>
+                <p class="stat-label">Total collections</p>
+            </div>
+            <div>
+                <p class="stat-value negative">{{ total_outstanding|inr }}</p>
+                <p class="stat-label">Outstanding dues</p>
+            </div>
+            <div>
+                <p class="stat-value negative">{{ overdue_flats|length }}</p>
+                <p class="stat-label">Overdue flats</p>
+            </div>
+            <div>
+                <p class="stat-value">{{ open_complaint_count }}</p>
+                <p class="stat-label">Open complaints</p>
+            </div>
         </div>
     </div>
 
-    <h2>Overdue Flats</h2>
-    {% if overdue_flats %}
-    <div class="table-scroll">
-    <table>
-        <tr>
-            <th>Flat Number</th>
-            <th>Owner Name</th>
-            <th>Outstanding</th>
-            <th>Days Overdue</th>
-        </tr>
-        {% for flat in overdue_flats %}
-        <tr>
-            <td>{{ flat.flat_number }}</td>
-            <td>{{ flat.owner_name }}</td>
-            <td>{{ flat.outstanding|inr }}</td>
-            <td>{{ flat.days_overdue }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    <div class="card">
+        <h2>Overdue Flats</h2>
+        {% if overdue_flats %}
+        <div class="table-scroll">
+        <table>
+            <tr>
+                <th>Flat Number</th>
+                <th>Owner Name</th>
+                <th>Outstanding</th>
+                <th>Days Overdue</th>
+            </tr>
+            {% for flat in overdue_flats %}
+            <tr>
+                <td>{{ flat.flat_number }}</td>
+                <td>{{ flat.owner_name }}</td>
+                <td style="color: var(--color-alert); font-weight: 700;">{{ flat.outstanding|inr }}</td>
+                <td>{{ flat.days_overdue }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        </div>
+        {% else %}
+        <p>No flats are currently overdue.</p>
+        {% endif %}
     </div>
-    {% else %}
-    <p>No flats are currently overdue.</p>
-    {% endif %}
 
-    <h2>Complaints</h2>
-    <p>
-        Open or In Progress: <strong>{{ open_complaint_count }}</strong>
-        (<span class="badge badge-high">High: {{ open_by_urgency.High }}</span>
-        <span class="badge badge-medium">Medium: {{ open_by_urgency.Medium }}</span>
-        <span class="badge badge-low">Low: {{ open_by_urgency.Low }}</span>)
-    </p>
-    <ul>
-        <li>Average age of open complaints: {{ "%.1f"|format(average_open_age_days) }} day(s)</li>
-        <li>
-            Average resolution time:
-            {% if average_resolution_days is not none %}
-            {{ "%.1f"|format(average_resolution_days) }} day(s)
-            {% else %}
-            No resolved complaints yet
-            {% endif %}
-        </li>
-    </ul>
+    <div class="card">
+        <h2>Complaints</h2>
+        <p>
+            Open or In Progress: <strong>{{ open_complaint_count }}</strong>
+            (<span class="badge badge-high">High: {{ open_by_urgency.High }}</span>
+            <span class="badge badge-medium">Medium: {{ open_by_urgency.Medium }}</span>
+            <span class="badge badge-low">Low: {{ open_by_urgency.Low }}</span>)
+        </p>
+        <ul>
+            <li>Average age of open complaints: {{ "%.1f"|format(average_open_age_days) }} day(s)</li>
+            <li>
+                Average resolution time:
+                {% if average_resolution_days is not none %}
+                {{ "%.1f"|format(average_resolution_days) }} day(s)
+                {% else %}
+                No resolved complaints yet
+                {% endif %}
+            </li>
+        </ul>
 
-    <a role="button" href="/staff/complaints">Manage Complaints</a>
+        <a role="button" href="/staff/complaints">Manage Complaints</a>
+    </div>
 {% endblock %}

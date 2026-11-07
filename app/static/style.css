@@ -1,44 +1,72 @@
 /* Custom design layer on top of Pico.css (loaded first in base.html).
    Pico reads these CSS variables itself, so overriding them restyles
    every element Pico already handles (buttons, forms, nav, tables)
-   without having to re-style each one by hand. */
-:root {
-    /* Accessibility-first palette: residents skew older, so contrast
-       matters more here than visual flair. Every color below was picked
-       to stay well above WCAG AA contrast (4.5:1) against white. */
+   without having to re-style each one by hand.
 
-    /* Body text/headings: deep charcoal, not pure black — still very
-       high contrast against white, easier on the eyes than #000. */
+   The selector below is NOT just ":root" — it deliberately repeats Pico's
+   own selector for its default light-theme values,
+   ":host(:not([data-theme=dark])),:root:not([data-theme=dark]),[data-theme=light]".
+   Pico sets --pico-primary-background (and several other --pico-*
+   variables) using that exact selector, which has HIGHER CSS specificity
+   (0,2,0) than a plain ":root" (0,1,0) — so a plain ":root" override here
+   was silently losing to Pico's own blue, no matter what color was written
+   below, which is why buttons stayed blue even after this was edited to
+   terracotta. Matching Pico's selector exactly gives this rule the same
+   specificity, and since this stylesheet loads after Pico's <link> in
+   base.html, it wins the resulting tie by source order. */
+:host(:not([data-theme=dark])),
+:root:not([data-theme=dark]),
+[data-theme=light] {
+    /* Blue palette on a white page. Accent/structural colors only:
+       #E3F2FD cards and table headers, #90CAF9 borders, #2196F3 button
+       fill, #0D47A1 hover and link text. Body text stays deep charcoal.
+       Contrast note: white on #2196F3 is only 3.12:1 (below the 4.5:1
+       text standard), so plain link text uses #0D47A1 (8.63:1) instead
+       and #2196F3 is kept to bold button fills. */
     --pico-color: #1a2530;
     --pico-h1-color: #1a2530;
     --pico-h2-color: #1a2530;
 
-    /* Background: kept light everywhere on purpose — no dark theme. Light
-       text on a dark background is harder for older eyes to read. */
+    /* White page, light-blue surfaces. No dark theme anywhere. */
     --pico-background-color: #ffffff;
-    --color-surface-secondary: #f8f9fa; /* for things like table headers */
+    --color-surface-secondary: #e3f2fd; /* cards, .complaint-row, table headers */
+    --color-border: #90caf9; /* borders and dividers */
+    --color-accent-teal: #bfe7ea; /* table headers, the "Open" badge */
+    --color-accent-teal-text: #0f5257;
 
-    /* Primary buttons/links: a deep, accessible blue.
-       --pico-primary is what plain links/underlines use; the
-       --pico-primary-* variables below are what BUTTONS actually read
-       their background/text from (see the button rule further down —
-       Pico keeps those separate, so both have to be set). */
-    --pico-primary: #0056b3;
-    --pico-primary-hover: #003d80;
-    --pico-primary-underline: #0056b3;
-    --pico-primary-background: #0056b3;
-    --pico-primary-border: #0056b3;
-    --pico-primary-hover-background: #003d80;
-    --pico-primary-hover-border: #003d80;
-    --pico-primary-focus: rgba(0, 86, 179, 0.5);
+    /* Primary: --pico-primary is link text (dark blue); the
+       --pico-primary-background/-border variables are what BUTTONS read
+       for their fill (medium blue), and Pico keeps those separate. */
+    --pico-primary: #0d47a1;
+    --pico-primary-hover: #0d47a1;
+    --pico-primary-underline: #0d47a1;
+    --pico-primary-background: #2196f3;
+    --pico-primary-border: #2196f3;
+    --pico-primary-hover-background: #0d47a1;
+    --pico-primary-hover-border: #0d47a1;
+    --pico-primary-focus: rgba(33, 150, 243, 0.5);
     --pico-primary-inverse: #ffffff;
 
+    /* Secondary buttons: deep teal (the reference palette's pale teal,
+       #BFE7EA, only works as an accent/surface tint — it's nowhere near
+       dark enough to hold white button text). */
+    --pico-secondary: #2f7a80;
+    --pico-secondary-background: #2f7a80;
+    --pico-secondary-border: #2f7a80;
+    --pico-secondary-hover-background: #245f64;
+    --pico-secondary-hover-border: #245f64;
+    --pico-secondary-inverse: #ffffff;
+
     /* App-specific colors (not Pico variables — used directly by the
-       .success button class and the badge/banner rules below). */
-    --color-success: #0e7a3b;
-    --color-success-hover: #0a5f2e;
-    --color-alert: #c82333;
-    --color-alert-hover: #9c1b28;
+       .success button class and the badge/banner rules below). Also
+       darkened from the first pass (#0E7A3B / #C82333) — those only
+       passed 4.5:1 on a white card, not directly on the cream page,
+       and error/success messages appear directly on the page in several
+       templates (login, bank upload, new complaint) that have no card. */
+    --color-success: #0a5f2e;
+    --color-success-hover: #084a24;
+    --color-alert: #ac1b29;
+    --color-alert-hover: #8a1620;
 
     --pico-border-radius: 0.375rem;
 
@@ -68,6 +96,28 @@
     font-weight: 700;
 }
 
+/* Pico's own base rule is "button[type=submit]{width:100%}" — fine for a
+   lone button at the bottom of a tall vertical form, but it's why every
+   submit button in the app (Apply Filters, the per-row Update button,
+   Upload and Process) was stretching edge-to-edge, which read as
+   oversized and out of place for a short action next to a couple of
+   dropdowns. Buttons now size to their own label by default, like
+   [role=button] links already did. */
+button[type="submit"], button {
+    width: auto;
+}
+
+/* Dropdowns inside a compact inline row (the per-row category/status
+   update form, the filter bar's sort dropdown) shouldn't stretch to fill
+   the whole row either — same reasoning as the button fix above. Plain
+   standalone form fields elsewhere (the payment amount input, the
+   complaint textarea) are untouched and still correctly fill their row,
+   since those genuinely benefit from it. */
+.complaint-row form select,
+.filter-bar select {
+    width: auto;
+}
+
 /* A positive-action button (so far just "Pay Now") — same solid-bg +
    white-bold-text treatment as the default primary button, just the
    accessible deep green color from :root instead of blue. */
@@ -89,12 +139,15 @@
    on long pages like the staff complaints list. An opaque background is
    required for this to look right, or page content would show through
    behind it while scrolled; z-index keeps it above that content. */
-nav.container {
+.site-header {
     position: sticky;
     top: 0;
     z-index: 10;
     background-color: #ffffff;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+nav.container {
     padding-top: 1rem;
     padding-bottom: 1rem;
     /* Pico's own nav rule is "display:flex; overflow:visible" with no
@@ -133,7 +186,7 @@ nav.container ul:last-child a {
 
 nav.container ul:last-child a:hover {
     color: var(--pico-primary);
-    background-color: #eff6ff;
+    background-color: #e3f2fd;
 }
 
 /* The brand link shouldn't look like a nav action. Targeted by class, not
@@ -167,30 +220,42 @@ main.container {
 }
 
 table {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-border);
 }
 
 table th {
     background-color: var(--color-surface-secondary);
+    color: var(--pico-color);
 }
 
 /* Cards/sections used across the staff and resident pages — a subtle
    border is enough definition; Pico's default shadow is kept minimal on
    purpose (the brief explicitly asks to avoid heavy shadows/cards). */
 article {
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--color-border);
     box-shadow: none;
 }
 
+/* A dashboard/complaints-page section wrapped in its own visible block —
+   deliberately used on the staff pages specifically, where staff need to
+   scan several sections of numbers/rows quickly; the resident pages stay
+   plainer on purpose. Rem-based padding/margin, same as the rest of this
+   file, so it scales with the user's font-size setting. */
+.card {
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--pico-border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
 /* A row of key numbers (e.g. the staff dashboard's collections/outstanding/
-   overdue/open-complaints summary) — plain text in a row, not boxed cards,
-   per the brief. flex-wrap keeps it readable on narrow screens instead of
-   squeezing four numbers into one line. */
+   overdue/open-complaints summary). flex-wrap keeps it readable on narrow
+   screens instead of squeezing four numbers into one line. */
 .stat-row {
     display: flex;
     flex-wrap: wrap;
     gap: 2rem;
-    margin: 1.5rem 0;
 }
 
 .stat-row > div {
@@ -198,10 +263,23 @@ article {
 }
 
 .stat-value {
-    font-size: 1.75rem;
+    font-size: 2.25rem;
     font-weight: 700;
     margin: 0;
     color: var(--pico-h1-color);
+}
+
+/* Meaningful color, not decoration: money actually collected reads as a
+   positive result (success green); money still owed/overdue reads as
+   something needing attention (alert crimson). Applied via these two
+   modifier classes directly on the specific .stat-value that needs it,
+   rather than guessing a rule that would color every number the same way. */
+.stat-value.positive {
+    color: var(--color-success);
+}
+
+.stat-value.negative {
+    color: var(--color-alert);
 }
 
 .stat-label {
@@ -220,57 +298,96 @@ article {
     font-size: 0.9em;
 }
 
-.badge-open { background-color: #dbeafe; color: #1e40af; }
+/* Open uses the palette's teal accent instead of the earlier cool blue,
+   kept as a teal tint. */
+.badge-open { background-color: var(--color-accent-teal); color: var(--color-accent-teal-text); }
 .badge-in-progress { background-color: #fef3c7; color: #92400e; }
 .badge-resolved { background-color: #dcfce7; color: #166534; }
-/* High urgency is the one genuinely "alert/urgent" badge — uses the
-   accessible crimson from :root as its text color, on a light tint of
-   the same color rather than a plain-red guess. Medium/Low aren't urgent,
-   so they're left as the existing neutral tones. */
-/* #fcebec (not a rounder/darker-looking pink) was picked specifically
-   because it's the lightest tint that still clears 4.5:1 contrast against
-   --color-alert text — a darker pink here reads fine to the eye but
-   actually fails WCAG AA; verified with a real luminance/contrast
-   calculation, not by eye. */
-.badge-high { background-color: #fcebec; color: var(--color-alert); }
+/* High urgency is the one genuinely "alert/urgent" badge — solid crimson
+   fill + white text, the same bold treatment as the safety banner and
+   alert buttons, specifically so it reads as unmistakably urgent at a
+   glance and doesn't blend in with the softer tinted badges below it.
+   Medium/Low aren't urgent, so they're left as the existing neutral tones. */
+.badge-high { background-color: var(--color-alert); color: #ffffff; font-weight: 700; }
 .badge-medium { background-color: #fef3c7; color: #92400e; }
-.badge-low { background-color: #f1f5f9; color: #334155; }
+.badge-low { background-color: #eceff1; color: #37474f; }
 
-/* The staff complaints filter bar: checkbox groups wrapped onto a few
-   lines instead of Pico's default one-label-per-line fieldset, so 10
-   category checkboxes don't push the actual complaint list off-screen. */
-.filter-bar fieldset {
+/* The staff complaints filter bar — a plain row of inline controls. */
+.filter-bar {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.4rem 1.25rem;
-    border: none;
-    padding: 0;
-    margin: 0.5rem 0;
+    align-items: flex-end;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
 
-.filter-bar legend {
-    font-weight: 600;
-    margin-bottom: 0.25rem;
+/* Multi-select-via-checkbox-popover (see initDropdownFilters() in app.js).
+   .dropdown-filter is the positioning anchor; .dropdown-filter-panel is
+   absolutely positioned against it, so it floats over the page instead of
+   pushing the rest of the filter bar (and the complaint list below it)
+   down the page the way the old always-visible checkbox list did. */
+.dropdown-filter {
+    position: relative;
 }
 
-.filter-bar fieldset label {
-    display: inline-flex;
+.dropdown-filter-toggle {
+    /* A literal color, not var(--pico-color) — Pico's own base button rule
+       locally redefines --pico-color to --pico-primary-inverse (white) for
+       every <button>, so referencing the same variable here just read that
+       white value back instead of overriding it: white text on a
+       near-white box, invisible. Writing the actual hex sidesteps that
+       custom-property redefinition entirely. */
+    background-color: var(--color-surface-secondary);
+    color: #1a2530;
+    border: 1px solid var(--color-border);
+    min-width: 10rem;
+    text-align: left;
+}
+
+.dropdown-filter-panel {
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    z-index: 20;
+    min-width: 14rem;
+    max-height: 16rem;
+    overflow-y: auto;
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--pico-border-radius);
+    padding: 0.75rem;
+    box-shadow: 0 0.25rem 0.75rem rgba(26, 37, 48, 0.15);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.dropdown-filter-panel[hidden] {
+    display: none;
+}
+
+.dropdown-filter-panel label {
+    display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.4rem;
     font-weight: normal;
     margin: 0;
 }
 
-/* A compact complaint row for staff — a thin divider between rows instead
-   of a bordered card per row, which was eating vertical space fast on a
-   long filtered list. */
+/* Each staff complaint is its own visible card (background + padding +
+   a gap to the next one) instead of plain text separated by a thin line —
+   on a long filtered list, a wall of undifferentiated text was hard to
+   scan row to row. */
 .complaint-row {
-    padding: 0.85rem 0;
-    border-bottom: 1px solid #e2e8f0;
+    background-color: var(--color-surface-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--pico-border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
 }
 
 .complaint-row:last-child {
-    border-bottom: none;
+    margin-bottom: 0;
 }
 
 .complaint-row form {
@@ -300,14 +417,27 @@ article {
 /* Briefly flashes a soft yellow background on whatever complaint row/card
    app.js's highlightFragmentTarget() just scrolled to, fading back to
    nothing over 2s — makes it obvious which one you jumped to among many
-   similar-looking rows. */
+   similar-looking rows. Two variants: the resident page's <article> has
+   no background of its own, so it fades to transparent; .complaint-row
+   now has a solid card background (see above), so fading to transparent
+   there would flash yellow -> plain white -> gray, a visible flicker —
+   it needs to fade back to its OWN resting color instead. */
 @keyframes highlight-flash {
     from { background-color: #fef9c3; }
     to { background-color: transparent; }
 }
 
+@keyframes highlight-flash-card {
+    from { background-color: #fef9c3; }
+    to { background-color: var(--color-surface-secondary); }
+}
+
 .highlight-flash {
     animation: highlight-flash 2s ease-out;
+}
+
+.complaint-row.highlight-flash {
+    animation: highlight-flash-card 2s ease-out;
 }
 
 /* Groups of [role=button] links (e.g. the homepage's two login buttons,
@@ -329,7 +459,7 @@ article {
         padding: 0.6rem 0.85rem;
     }
 
-    .filter-bar fieldset label {
+    .dropdown-filter-panel label {
         padding: 0.2rem 0;
     }
 }
