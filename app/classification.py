@@ -13,7 +13,12 @@ SYSTEM_PROMPT = """You are classifying complaints for a residential society mana
 {"category": "...", "urgency": "..."}
 category must be exactly one of: plumbing, electrical, lift, security, cleaning, safety, structural, parking, noise, other
 urgency must be exactly one of: Low, Medium, High
-If the complaint describes more than one issue, pick whichever is more safety-critical or urgent as the single category."""
+If the complaint describes more than one issue, pick whichever is more safety-critical or urgent as the single category.
+
+Choose urgency from the real-world situation described, NOT from how insistent the message sounds. Words like "urgent", "emergency", "asap" or "please fix immediately" do not make a minor problem High, and a calmly worded message can still describe a dangerous one.
+High: there is immediate danger to people or property, or something safety-critical has failed. Examples: fire or smoke, gas leak, electric shock or exposed live wiring, flooding or water near electrical equipment, structural collapse, someone injured or trapped, a person stuck in a lift, an intruder or assault.
+Medium: it seriously disrupts daily life or will get worse if ignored, but nobody is in danger right now. Examples: a lift out of service, a pipe or tap leaking heavily inside a flat, no water supply, a broken light in a common stairwell or corridor, a gate or lock not working, repeated loud noise.
+Low: minor, cosmetic or inconvenient and can safely wait several days. Examples: a dripping or slowly leaking tap, peeling paint, a small crack that is not growing, a flickering bulb in a flat, occasional noise, a question, or anything that is not really a complaint."""
 
 # llama-3.1-8b-instant (the model originally asked for) was retired by Groq;
 # openai/gpt-oss-20b is Groq's own recommended replacement and is their

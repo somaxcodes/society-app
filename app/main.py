@@ -615,6 +615,14 @@ def escalate_duplicate_cluster_urgency(db: Session, linked_to_id: int, new_compl
     for complaint in cluster:
         complaint.urgency = highest_urgency
 
+    # Same reasoning for the safety flag: it's one real-world problem, so if
+    # any report in the cluster tripped the safety check (e.g. the one that
+    # says "gas leak"), a sibling describing it in different words ("smell
+    # near my flat") must not show up as a plain, un-alerted complaint.
+    if any(complaint.is_safety_flagged for complaint in cluster):
+        for complaint in cluster:
+            complaint.is_safety_flagged = True
+
 
 @app.get("/complaints/new")
 def complaint_new_page(request: Request, user: User = Depends(require_role("resident"))):

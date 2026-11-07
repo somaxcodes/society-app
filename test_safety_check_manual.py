@@ -33,6 +33,10 @@ cases = [
     ("Someone is trapping their pet lift door open", True),  # tests the trap stem, even in an odd sentence
     ("Worried someone is getting electrocuted right now", True),
     ("The security guard bled after the fall", True),
+    ("someone fell in the lobby and they are injured", True),
+    ("water is dripping near the electrical panel, looks dangerous", True),
+    ("my tap on the first floor is leaking", False),  # "fir" must not match inside "first"
+    ("Please confirm the firm date for the maintenance", False),
 ]
 
 for text, expected in cases:

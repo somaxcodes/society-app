@@ -26,10 +26,25 @@ def check_safety_flag(text: str) -> bool:
         "collapse": ["collaps", "collapsed", "colapse", "colapsed"],
         "trapped": ["trap", "trapped", "traped", "trappd"],
         "electrocuted": ["electrocut", "electrocuted", "electrocution"],
+        # Someone being hurt, or the writer calling it an emergency/danger, is
+        # exactly the kind of complaint that must never rely on the AI alone.
+        "injury": ["injur", "injurd", "hurt", "ambulance", "ambulence"],
+        "emergency": ["emergency", "emergancy", "emergncy", "dangerous", "dangerus"],
     }
+
+    # Short misspellings that are also fragments of ordinary words ("fir"
+    # sits inside "first", "firm", "confirm") only count when they appear as
+    # a whole word, otherwise "my flat is on the first floor" was flagged as
+    # a fire. The spaced-out/punctuated check below isn't used for these.
+    whole_word_only = ["fir"]
+    words = "".join(ch if ch.isalnum() else " " for ch in normal_text).split()
 
     for variants in standalone_words.values():
         for variant in variants:
+            if variant in whole_word_only:
+                if variant in words:
+                    return True
+                continue
             if variant in normal_text or variant in squished_text:
                 return True
 

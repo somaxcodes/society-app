@@ -45,3 +45,8 @@
 
 ## 2026-11-07
 - There's no separate committee role in this build — the "committee dashboard" is the same staff dashboard page. The Core build brief only specifies resident and help-desk staff roles, so a third role wasn't built.
+
+## 2026-11-07 (urgency and safety-flag accuracy)
+- **Why a dripping tap showed High**: the AI rated it Low on its own. It became High because (a) the urgency prompt had no definition of Low/Medium/High, so a sibling report saying "leaking a lot... please fix urgently" came back High, and (b) cluster escalation then copied that High onto every linked report. Fix: the prompt now defines the three levels with examples and tells the model to judge the situation, not the tone ("urgent" in the text doesn't make a minor problem High). Escalation across a cluster is unchanged on purpose.
+- **Why some High complaints had the red SAFETY banner and others didn't**: the banner is driven by the keyword check (`check_safety_flag`), not by urgency, so the two are independent. The keyword check had holes both ways: it missed injury and "dangerous" wording, and "fir" (a misspelling of fire) matched inside "first", "firm" and "confirm". Fixes: added injury/ambulance/hurt/emergency/dangerous terms, made "fir" match only as a whole word, and the safety flag now spreads across a duplicate cluster (same reasoning as urgency), so two reports of one gas leak can't show different alerts.
+- Re-scored the existing dev-database complaints under the corrected logic. `test_urgency_manual.py` calls the real AI and is meant to be read, not asserted, since the model's answers can shift.
