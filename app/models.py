@@ -144,6 +144,12 @@ class Complaint(Base):
     # regardless of urgency/category.
     is_safety_flagged: Mapped[bool] = mapped_column(default=False)
 
+    # When this complaint most recently became "Resolved". Nullable: None
+    # for a complaint that's never been resolved, or that was resolved and
+    # then reopened (see the staff update route for exactly when this gets
+    # set vs. cleared). Used to calculate average resolution time.
+    resolved_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
     __table_args__ = (
         CheckConstraint(
             "category IN ('plumbing', 'electrical', 'lift', 'security', 'cleaning', "

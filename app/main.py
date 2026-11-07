@@ -239,12 +239,40 @@ def staff_dashboard(
                     }
                 )
 
+    open_complaints = db.query(Complaint).filter(Complaint.status.in_(["Open", "In Progress"])).all()
+
+    open_complaint_count = len(open_complaints)
+    open_by_urgency = {"High": 0, "Medium": 0, "Low": 0}
+    for complaint in open_complaints:
+        open_by_urgency[complaint.urgency] += 1
+
+    now = datetime.utcnow()
+    if open_complaints:
+        average_open_age_days = sum(
+            (now - complaint.created_at).total_seconds() for complaint in open_complaints
+        ) / len(open_complaints) / 86400
+    else:
+        average_open_age_days = 0
+
+    resolved_complaints = db.query(Complaint).filter(Complaint.resolved_at.isnot(None)).all()
+    if resolved_complaints:
+        average_resolution_days = sum(
+            (complaint.resolved_at - complaint.created_at).total_seconds()
+            for complaint in resolved_complaints
+        ) / len(resolved_complaints) / 86400
+    else:
+        average_resolution_days = None
+
     return templates.TemplateResponse(
         request,
         "staff_dashboard.html",
         {
             "total_collections": total_collections,
             "overdue_flats": overdue_flats,
+            "open_complaint_count": open_complaint_count,
+            "open_by_urgency": open_by_urgency,
+            "average_open_age_days": average_open_age_days,
+            "average_resolution_days": average_resolution_days,
         },
     )
 
@@ -607,6 +635,18 @@ def staff_complaint_update(
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if complaint is None:
         return RedirectResponse(url="/staff/complaints", status_code=303)
+
+    # resolved_at tracks when the complaint most recently BECAME resolved —
+    # it only gets set on the actual Open/In Progress -> Resolved transition
+    # (not on every save while it's already Resolved, which would keep
+    # pushing the timestamp forward), and gets cleared the moment it's
+    # anything other than Resolved, so a reopened-then-resolved complaint
+    # gets a fresh, accurate timestamp instead of its old one.
+    if status == "Resolved":
+        if complaint.status != "Resolved":
+            complaint.resolved_at = datetime.utcnow()
+    else:
+        complaint.resolved_at = None
 
     complaint.category = category
     complaint.status = status

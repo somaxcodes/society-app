@@ -24,4 +24,20 @@
         </tr>
         {% endfor %}
     </table>
+
+    <h2>Complaints</h2>
+    <ul>
+        <li>Open or In Progress: {{ open_complaint_count }}
+            (High: {{ open_by_urgency.High }}, Medium: {{ open_by_urgency.Medium }}, Low: {{ open_by_urgency.Low }})
+        </li>
+        <li>Average age of open complaints: {{ "%.1f"|format(average_open_age_days) }} day(s)</li>
+        <li>
+            Average resolution time:
+            {% if average_resolution_days is not none %}
+            {{ "%.1f"|format(average_resolution_days) }} day(s)
+            {% else %}
+            No resolved complaints yet
+            {% endif %}
+        </li>
+    </ul>
 {% endblock %}
