@@ -9,6 +9,7 @@ from datetime import date, datetime
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -65,6 +66,76 @@ app.add_middleware(SessionMiddleware, secret_key=secret_key)
 # web pages, instead of just returning JSON like the "/" route below does.
 templates = Jinja2Templates(directory="app/templates")
 
+# Serves files from app/static/ at the URL /static/... — without this,
+# base.html's <link href="/static/style.css"> would 404, since FastAPI
+# doesn't serve arbitrary folders unless they're explicitly mounted.
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+
+def asset_version(filename: str) -> int:
+    # A static file's own last-modified time, used as a cache-busting query
+    # string (?v=...) on its <link>/<script> tag in base.html. Without
+    # this, browsers that cache static files (they have no Cache-Control
+    # header) keep showing an old version after we edit it, until a hard
+    # refresh — changing the URL itself every time the file changes forces
+    # a refetch instead of relying on everyone remembering to hard-refresh.
+    return int(os.path.getmtime(f"app/static/{filename}"))
+
+
+templates.env.globals["asset_version"] = asset_version
+
+
+def format_inr(value: float) -> str:
+    # Formats a number the way Indian currency is actually grouped —
+    # the last 3 digits of the rupee part as one group, then groups of 2
+    # going left from there (so 100000 -> "1,00,000", not the Western
+    # "100,000") — plus the exact paise as 2 decimal places, since
+    # silently rounding those away (e.g. showing 2900.4 as "₹2,900") hid
+    # real money from view. Used as the "inr" template filter registered
+    # below; every amount shown to a user should go through it instead of
+    # printing a raw float.
+    sign = "-" if value < 0 else ""
+
+    # Rounding the whole value as paise (value * 100) in one step, rather
+    # than separately rounding rupees and subtracting to get paise, avoids
+    # float imprecision (e.g. 2900.4 - 2900 isn't exactly 0.4 in binary
+    # floating point) ever producing a wrong or inconsistent paise figure.
+    total_paise = round(abs(value) * 100)
+    rupees, paise = divmod(total_paise, 100)
+
+    digits = str(rupees)
+    if len(digits) <= 3:
+        grouped = digits
+    else:
+        last_three = digits[-3:]
+        rest = digits[:-3]
+        groups = []
+        while len(rest) > 2:
+            groups.insert(0, rest[-2:])
+            rest = rest[:-2]
+        if rest:
+            groups.insert(0, rest)
+        grouped = ",".join(groups) + "," + last_three
+
+    return f"{sign}₹{grouped}.{paise:02d}"
+
+
+templates.env.filters["inr"] = format_inr
+
+# These must stay in sync with the CheckConstraints on Complaint in
+# app/models.py — they're the single source of truth for what's valid;
+# these lists are this file's own copy, shared by the resident complaint
+# summary and the staff complaints page, to build checkboxes/dropdowns and
+# to validate the staff update form against.
+ALL_CATEGORIES = [
+    "plumbing", "electrical", "lift", "security", "cleaning",
+    "safety", "structural", "parking", "noise", "other",
+]
+ALL_STATUSES = ["Open", "In Progress", "Resolved"]
+
+# Lower number = higher priority. Used to sort complaints by urgency tier.
+URGENCY_RANK = {"High": 0, "Medium": 1, "Low": 2}
+
 
 # @app.get("/") means: when someone visits the home page ("/") with a
 # normal browser visit (a GET request), run the function right below it.
@@ -77,7 +148,10 @@ def home(request: Request):
     if role == "staff":
         return RedirectResponse(url="/staff/dashboard")
 
-    return RedirectResponse(url="/login")
+    # Logged-out visitors see the public homepage instead of being bounced
+    # straight to the login form — it's their actual entry point into
+    # either the resident or staff login flow below.
+    return templates.TemplateResponse(request, "home.html")
 
 
 @app.get("/login")
@@ -85,6 +159,19 @@ def login_page(request: Request):
     # TemplateResponse needs "request" — Starlette uses it internally (e.g.
     # for building URLs), so it's always the first argument passed in.
     return templates.TemplateResponse(request, "login.html")
+
+
+@app.get("/login/resident")
+def login_page_resident(request: Request):
+    # Same login.html, same /login POST underneath — this route only picks
+    # which heading shows. There's still exactly one place a password is
+    # ever checked (the POST /login handler below), not two auth systems.
+    return templates.TemplateResponse(request, "login.html", {"audience": "resident"})
+
+
+@app.get("/login/staff")
+def login_page_staff(request: Request):
+    return templates.TemplateResponse(request, "login.html", {"audience": "staff"})
 
 
 @app.post("/login")
@@ -161,7 +248,12 @@ def logout(request: Request):
     # .clear() wipes everything we stored in the session cookie (user_id,
     # role), so the next request looks "logged out" again.
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+
+    # "/" (not "/login" directly) so a logged-out visitor lands back on the
+    # public homepage — the same page they'd have seen before ever logging
+    # in, with both the Resident Login and Staff Login choices, rather than
+    # skipping straight to the plain generic login form.
+    return RedirectResponse(url="/", status_code=303)
 
 
 @app.get("/staff-only")
@@ -174,9 +266,52 @@ def me(user: User = Depends(get_current_user)):
     return {"email": user.email, "role": user.role}
 
 
+def build_bills_context(flat: Flat, bill: Bill, db: Session) -> dict:
+    # Shared by bills_page() and pay_bill()'s validation-error re-render —
+    # both need the exact same "what does this resident see" picture of
+    # their bill and open complaints.
+    outstanding = bill.amount_due - bill.amount_paid
+    # max(0, ...) means "never negative" — if the bill isn't overdue yet,
+    # due_date is in the future, and (today - due_date) would be negative.
+    days_overdue = max(0, (date.today() - bill.due_date).days)
+
+    # A short, plain-English label instead of making a resident read three
+    # raw numbers and work out their own payment status.
+    if outstanding <= 0:
+        payment_status = "Fully paid"
+    elif bill.amount_paid > 0:
+        payment_status = "Partially paid"
+    else:
+        payment_status = "Not yet paid"
+
+    # This resident's own open complaints, worth surfacing right here since
+    # the brief calls out "open complaints and their status" as one of the
+    # first things a resident should see, not something they have to click
+    # through to My Complaints to find.
+    open_complaints = (
+        db.query(Complaint)
+        .filter(Complaint.flat_id == flat.id, Complaint.status.in_(["Open", "In Progress"]))
+        .all()
+    )
+    open_complaints.sort(
+        key=lambda complaint: (URGENCY_RANK.get(complaint.urgency, 99), -complaint.created_at.timestamp())
+    )
+
+    return {
+        "flat": flat,
+        "bill": bill,
+        "outstanding": outstanding,
+        "days_overdue": days_overdue,
+        "payment_status": payment_status,
+        "is_overdue": days_overdue > 0 and outstanding > 0,
+        "open_complaints": open_complaints,
+    }
+
+
 @app.get("/bills")
 def bills_page(
     request: Request,
+    paid: bool = False,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -196,21 +331,10 @@ def bills_page(
     # SQLAlchemy stand-in for "get one row or None".
     bill = db.query(Bill).filter(Bill.flat_id == flat.id).first()
 
-    outstanding = bill.amount_due - bill.amount_paid
-    # max(0, ...) means "never negative" — if the bill isn't overdue yet,
-    # due_date is in the future, and (today - due_date) would be negative.
-    days_overdue = max(0, (date.today() - bill.due_date).days)
+    context = build_bills_context(flat, bill, db)
+    context["just_paid"] = paid
 
-    return templates.TemplateResponse(
-        request,
-        "bills.html",
-        {
-            "flat": flat,
-            "bill": bill,
-            "outstanding": outstanding,
-            "days_overdue": days_overdue,
-        },
-    )
+    return templates.TemplateResponse(request, "bills.html", context)
 
 
 @app.get("/staff/dashboard")
@@ -222,11 +346,13 @@ def staff_dashboard(
     flats = db.query(Flat).all()
 
     total_collections = 0
+    total_outstanding = 0
     overdue_flats = []
 
     for flat in flats:
         for bill in flat.bills:
             total_collections += bill.amount_paid
+            total_outstanding += max(0, bill.amount_due - bill.amount_paid)
 
             is_overdue = bill.due_date < date.today() and bill.amount_paid < bill.amount_due
             if is_overdue:
@@ -268,6 +394,7 @@ def staff_dashboard(
         "staff_dashboard.html",
         {
             "total_collections": total_collections,
+            "total_outstanding": total_outstanding,
             "overdue_flats": overdue_flats,
             "open_complaint_count": open_complaint_count,
             "open_by_urgency": open_by_urgency,
@@ -441,27 +568,52 @@ def pay_bill(
     flat = db.query(Flat).filter(Flat.id == user.flat_id).first()
     bill = db.query(Bill).filter(Bill.flat_id == flat.id).first()
     outstanding = bill.amount_due - bill.amount_paid
-    days_overdue = max(0, (date.today() - bill.due_date).days)
 
     # Re-render the same page with an error instead of applying a payment
     # that doesn't make sense (nothing paid, or paying more than is owed).
     if amount <= 0 or amount > outstanding:
-        return templates.TemplateResponse(
-            request,
-            "bills.html",
-            {
-                "flat": flat,
-                "bill": bill,
-                "outstanding": outstanding,
-                "days_overdue": days_overdue,
-                "error": "Enter an amount greater than 0 and no more than the outstanding balance",
-            },
-        )
+        context = build_bills_context(flat, bill, db)
+        context["error"] = "Enter an amount greater than 0 and no more than the outstanding balance"
+        return templates.TemplateResponse(request, "bills.html", context)
 
     bill.amount_paid += amount
     db.commit()
 
-    return RedirectResponse(url="/bills", status_code=303)
+    # ?paid=1 tells the next /bills GET to show a "payment received" banner
+    # — this is the "meaningful payment feedback" the brief asks for, since
+    # a bare redirect back to the same page gives no visible confirmation
+    # that anything happened.
+    return RedirectResponse(url="/bills?paid=1", status_code=303)
+
+
+def escalate_duplicate_cluster_urgency(db: Session, linked_to_id: int, new_complaint: Complaint) -> None:
+    # find_duplicate() always returns the OLDEST member of a cluster (the
+    # "anchor" — see the duplicate-linking note in decisions.md), so
+    # anchor.linked_to_id should already be None. Walking up anyway costs
+    # nothing and keeps this correct even if that invariant were ever
+    # violated (e.g. a future change, or a manually edited row).
+    anchor = db.query(Complaint).filter(Complaint.id == linked_to_id).first()
+    while anchor.linked_to_id is not None:
+        anchor = db.query(Complaint).filter(Complaint.id == anchor.linked_to_id).first()
+
+    # If root-walking found a deeper anchor than find_duplicate() returned,
+    # point the new complaint at that true root instead — keeps every
+    # duplicate pointing straight at one original report (a star shape),
+    # same reasoning as why linking always targets the oldest complaint.
+    new_complaint.linked_to_id = anchor.id
+
+    existing_duplicates = db.query(Complaint).filter(Complaint.linked_to_id == anchor.id).all()
+    cluster = [anchor, new_complaint] + existing_duplicates
+
+    # Lower URGENCY_RANK = higher priority, so the cluster's highest
+    # urgency is whichever member has the lowest rank.
+    highest_urgency = min(cluster, key=lambda complaint: URGENCY_RANK.get(complaint.urgency, 99)).urgency
+
+    # Setting every member to the single highest urgency in the cluster can
+    # only raise or leave unchanged each individual complaint's urgency —
+    # never lower it — which is exactly the "never downgrade" rule.
+    for complaint in cluster:
+        complaint.urgency = highest_urgency
 
 
 @app.get("/complaints/new")
@@ -503,15 +655,58 @@ def complaint_new(
         linked_to_id=linked_to_id,
         status="Open",
     )
+
+    if linked_to_id is not None:
+        escalate_duplicate_cluster_urgency(db, linked_to_id, complaint)
+
     db.add(complaint)
     db.commit()
 
-    return RedirectResponse(url="/complaints", status_code=303)
+    # ?submitted=1 tells the next /complaints GET to show a confirmation
+    # banner — without it, submitting a complaint gives no visible sign
+    # that anything actually happened.
+    return RedirectResponse(url="/complaints?submitted=1", status_code=303)
+
+
+def build_duplicate_links(db: Session, complaint: Complaint) -> dict:
+    # Shared by the resident /complaints page and the staff /staff/complaints
+    # page — both need the same "what is this complaint's place in its
+    # duplicate cluster, if any" picture.
+    #
+    # The complaint this one was linked to as a duplicate (if any) — looked
+    # up fresh each time, by id, rather than relying on a relationship,
+    # since linked_to_id can point at a complaint belonging to a different
+    # flat.
+    linked_from = None
+    if complaint.linked_to_id is not None:
+        linked_from = db.query(Complaint).filter(Complaint.id == complaint.linked_to_id).first()
+
+    # Other complaints that point back at THIS one — i.e. this complaint is
+    # the "original" and these are its duplicates.
+    linked_duplicates = db.query(Complaint).filter(Complaint.linked_to_id == complaint.id).all()
+
+    return {"linked_from": linked_from, "linked_duplicates": linked_duplicates}
+
+
+def get_cluster_siblings(db: Session, complaint: Complaint) -> list[Complaint]:
+    # Every OTHER complaint in the same duplicate cluster as this one,
+    # regardless of whether this complaint is the anchor or one of its
+    # duplicates. Used to warn staff that related reports exist after they
+    # change a complaint's status — not to change those reports themselves.
+    anchor_id = complaint.linked_to_id if complaint.linked_to_id is not None else complaint.id
+
+    cluster = (
+        db.query(Complaint)
+        .filter((Complaint.id == anchor_id) | (Complaint.linked_to_id == anchor_id))
+        .all()
+    )
+    return [member for member in cluster if member.id != complaint.id]
 
 
 @app.get("/complaints")
 def complaint_list(
     request: Request,
+    submitted: bool = False,
     user: User = Depends(require_role("resident")),
     db: Session = Depends(get_db),
 ):
@@ -524,41 +719,11 @@ def complaint_list(
 
     rows = []
     for complaint in complaints:
-        # The complaint this one was linked to as a duplicate (if any) —
-        # looked up fresh each time, by id, rather than relying on a
-        # relationship, since linked_to_id can point at a complaint
-        # belonging to a different flat.
-        linked_from = None
-        if complaint.linked_to_id is not None:
-            linked_from = db.query(Complaint).filter(Complaint.id == complaint.linked_to_id).first()
+        row = {"complaint": complaint}
+        row.update(build_duplicate_links(db, complaint))
+        rows.append(row)
 
-        # Other complaints that point back at THIS one — i.e. this
-        # complaint is the "original" and these are its duplicates.
-        linked_duplicates = db.query(Complaint).filter(Complaint.linked_to_id == complaint.id).all()
-
-        rows.append(
-            {
-                "complaint": complaint,
-                "linked_from": linked_from,
-                "linked_duplicates": linked_duplicates,
-            }
-        )
-
-    return templates.TemplateResponse(request, "complaint_list.html", {"rows": rows})
-
-
-# These must stay in sync with the CheckConstraints on Complaint in
-# app/models.py — they're the single source of truth for what's valid;
-# these lists are just this file's own copy to build checkboxes/dropdowns
-# and to validate the staff update form against.
-ALL_CATEGORIES = [
-    "plumbing", "electrical", "lift", "security", "cleaning",
-    "safety", "structural", "parking", "noise", "other",
-]
-ALL_STATUSES = ["Open", "In Progress", "Resolved"]
-
-# Lower number = higher priority. Used only for the "urgency" sort below.
-URGENCY_RANK = {"High": 0, "Medium": 1, "Low": 2}
+    return templates.TemplateResponse(request, "complaint_list.html", {"rows": rows, "just_submitted": submitted})
 
 
 @app.get("/staff/complaints")
@@ -567,9 +732,21 @@ def staff_complaints_page(
     sort: str = "urgency",
     category: list[str] = Query(default=[]),
     status: list[str] = Query(default=[]),
+    status_changed_id: int | None = None,
     user: User = Depends(require_role("staff")),
     db: Session = Depends(get_db),
 ):
+    # Set by staff_complaint_update() right after a status change on a
+    # complaint that's part of a duplicate cluster — a reminder banner, not
+    # an automatic change to the sibling complaints themselves.
+    status_change_notice = None
+    if status_changed_id is not None:
+        changed_complaint = db.query(Complaint).filter(Complaint.id == status_changed_id).first()
+        if changed_complaint is not None:
+            siblings = get_cluster_siblings(db, changed_complaint)
+            if siblings:
+                status_change_notice = {"complaint": changed_complaint, "siblings": siblings}
+
     query = db.query(Complaint)
 
     # No category/status checkboxes ticked means "show all" — only filter
@@ -599,10 +776,11 @@ def staff_complaints_page(
     # Staff see every complaint, not just one flat's, so each row needs its
     # own flat_number to show which flat it came from.
     flats_by_id = {flat.id: flat for flat in db.query(Flat).all()}
-    rows = [
-        {"complaint": complaint, "flat_number": flats_by_id[complaint.flat_id].flat_number}
-        for complaint in complaints
-    ]
+    rows = []
+    for complaint in complaints:
+        row = {"complaint": complaint, "flat_number": flats_by_id[complaint.flat_id].flat_number}
+        row.update(build_duplicate_links(db, complaint))
+        rows.append(row)
 
     return templates.TemplateResponse(
         request,
@@ -614,6 +792,7 @@ def staff_complaints_page(
             "selected_statuses": status,
             "all_categories": ALL_CATEGORIES,
             "all_statuses": ALL_STATUSES,
+            "status_change_notice": status_change_notice,
         },
     )
 
@@ -636,6 +815,8 @@ def staff_complaint_update(
     if complaint is None:
         return RedirectResponse(url="/staff/complaints", status_code=303)
 
+    status_changed = status != complaint.status
+
     # resolved_at tracks when the complaint most recently BECAME resolved —
     # it only gets set on the actual Open/In Progress -> Resolved transition
     # (not on every save while it's already Resolved, which would keep
@@ -651,5 +832,12 @@ def staff_complaint_update(
     complaint.category = category
     complaint.status = status
     db.commit()
+
+    # If the status actually changed and this complaint is part of a
+    # duplicate cluster, nudge staff to go check whether the related
+    # reports need the same status update too — a reminder only, nothing
+    # is changed automatically for them.
+    if status_changed and get_cluster_siblings(db, complaint):
+        return RedirectResponse(url=f"/staff/complaints?status_changed_id={complaint.id}", status_code=303)
 
     return RedirectResponse(url="/staff/complaints", status_code=303)
