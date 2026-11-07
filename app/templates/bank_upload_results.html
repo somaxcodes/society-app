@@ -5,35 +5,48 @@
 {% block content %}
     <h1>Upload Results</h1>
 
-    <ul>
-        <li>Matched: {{ counts.matched }}</li>
-        <li>Needs review: {{ counts.needs_review }}</li>
-        <li>Duplicate: {{ counts.duplicate }}</li>
-    </ul>
+    <p>✓ File processed. Here's what happened to each row:</p>
 
-    <h2>Needs Review (this upload)</h2>
+    <div class="stat-row">
+        <div>
+            <p class="stat-value">{{ counts.matched }}</p>
+            <p class="stat-label">Matched automatically</p>
+        </div>
+        <div>
+            <p class="stat-value">{{ counts.needs_review }}</p>
+            <p class="stat-label">Needs manual review</p>
+        </div>
+        <div>
+            <p class="stat-value">{{ counts.duplicate }}</p>
+            <p class="stat-label">Duplicate (already processed)</p>
+        </div>
+    </div>
+
+    <h2>Rows That Need Review (this upload)</h2>
     {% if needs_review_rows %}
+    <div class="table-scroll">
     <table>
         <tr>
             <th>Date</th>
             <th>Amount</th>
             <th>Reference</th>
             <th>UPI ID</th>
-            <th>Reason</th>
+            <th>Why it wasn't auto-matched</th>
         </tr>
         {% for row in needs_review_rows %}
         <tr>
             <td>{{ row.date }}</td>
-            <td>{{ row.amount }}</td>
+            <td>{{ row.amount|inr }}</td>
             <td>{{ row.reference }}</td>
             <td>{{ row.upi_id }}</td>
             <td>{{ row.reason }}</td>
         </tr>
         {% endfor %}
     </table>
+    </div>
     {% else %}
     <p>None of this upload's rows need review.</p>
     {% endif %}
 
-    <p><a href="/review-queue">View full review queue</a></p>
+    <a role="button" href="/review-queue">Go to Review Queue</a>
 {% endblock %}

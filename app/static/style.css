@@ -1,0 +1,361 @@
+/* Custom design layer on top of Pico.css (loaded first in base.html).
+   Pico reads these CSS variables itself, so overriding them restyles
+   every element Pico already handles (buttons, forms, nav, tables)
+   without having to re-style each one by hand. */
+:root {
+    /* Accessibility-first palette: residents skew older, so contrast
+       matters more here than visual flair. Every color below was picked
+       to stay well above WCAG AA contrast (4.5:1) against white. */
+
+    /* Body text/headings: deep charcoal, not pure black — still very
+       high contrast against white, easier on the eyes than #000. */
+    --pico-color: #1a2530;
+    --pico-h1-color: #1a2530;
+    --pico-h2-color: #1a2530;
+
+    /* Background: kept light everywhere on purpose — no dark theme. Light
+       text on a dark background is harder for older eyes to read. */
+    --pico-background-color: #ffffff;
+    --color-surface-secondary: #f8f9fa; /* for things like table headers */
+
+    /* Primary buttons/links: a deep, accessible blue.
+       --pico-primary is what plain links/underlines use; the
+       --pico-primary-* variables below are what BUTTONS actually read
+       their background/text from (see the button rule further down —
+       Pico keeps those separate, so both have to be set). */
+    --pico-primary: #0056b3;
+    --pico-primary-hover: #003d80;
+    --pico-primary-underline: #0056b3;
+    --pico-primary-background: #0056b3;
+    --pico-primary-border: #0056b3;
+    --pico-primary-hover-background: #003d80;
+    --pico-primary-hover-border: #003d80;
+    --pico-primary-focus: rgba(0, 86, 179, 0.5);
+    --pico-primary-inverse: #ffffff;
+
+    /* App-specific colors (not Pico variables — used directly by the
+       .success button class and the badge/banner rules below). */
+    --color-success: #0e7a3b;
+    --color-success-hover: #0a5f2e;
+    --color-alert: #c82333;
+    --color-alert-hover: #9c1b28;
+
+    --pico-border-radius: 0.375rem;
+
+    /* 112.5% of a 16px browser default = 18px, the brief's preferred
+       size — but expressed as a percentage (a relative unit), not a
+       fixed px value, so it still scales correctly if someone has
+       changed their browser's own default text size, and zooming still
+       works normally instead of the layout breaking. */
+    --pico-font-size: 112.5%;
+
+    /* The nav's rendered height (1rem padding top+bottom + its content +
+       the 1px border) — kept as one value here since both the sticky nav
+       itself and the scroll-margin-top fix below (for anchor links jumping
+       underneath it) need to agree on the same number. */
+    --nav-height: 4.5rem;
+}
+
+/* Every button-styled element (role=button links, <button>, submit
+   inputs) already gets a solid background + border-radius from Pico's own
+   base rule (confirmed by reading Pico's source directly — it sets
+   background-color: var(--pico-primary-background) and
+   border-radius: var(--pico-border-radius) on all of them), so neither
+   needed re-declaring here. What Pico does NOT do by default is make the
+   button text BOLD — this makes sure it reads clearly as an action,
+   consistent across every button in the app regardless of color. */
+[role="button"], button, [type="submit"], [type="button"] {
+    font-weight: 700;
+}
+
+/* A positive-action button (so far just "Pay Now") — same solid-bg +
+   white-bold-text treatment as the default primary button, just the
+   accessible deep green color from :root instead of blue. */
+[role="button"].success, button.success, [type="submit"].success {
+    background-color: var(--color-success);
+    border-color: var(--color-success);
+    color: #ffffff;
+}
+
+[role="button"].success:hover, button.success:hover, [type="submit"].success:hover {
+    background-color: var(--color-success-hover);
+    border-color: var(--color-success-hover);
+}
+
+/* Nav: a plain white bar with a visible border is enough to separate it
+   from page content — no shadow or color needed to read as "the header".
+   position: sticky + top: 0 keeps it pinned to the viewport's top edge as
+   the page scrolls, instead of scrolling away with the content — needed
+   on long pages like the staff complaints list. An opaque background is
+   required for this to look right, or page content would show through
+   behind it while scrolled; z-index keeps it above that content. */
+nav.container {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+    /* Pico's own nav rule is "display:flex; overflow:visible" with no
+       wrapping — fine with 2-3 links, but the staff nav has 5. Without
+       wrap, those links would just overflow sideways past the edge of the
+       screen on a narrow phone instead of stopping at the viewport edge,
+       forcing the whole page to scroll horizontally. flex-wrap here (and
+       on the link <ul> below) lets extra links drop to a second line
+       instead. */
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+}
+
+nav.container a {
+    text-decoration: none;
+}
+
+nav.container ul:last-child {
+    flex-wrap: wrap;
+    row-gap: 0.25rem;
+}
+
+/* base.html's nav has two separate <ul>s: the first holds only the brand
+   link, the second holds every nav action. Targeting "the last <ul>"
+   reaches every action link directly — no :not() needed, and no risk of
+   accidentally matching 0 elements the way "a:not(:first-child)" did
+   (every <a> here is its own <li>'s only child, so it's always the
+   first-child; that selector never matched anything). This rule's
+   specificity also beats the browser's default a:visited color, so a
+   link doesn't change color just because it's been clicked before. */
+nav.container ul:last-child a {
+    color: var(--pico-color);
+    padding: 0.4rem 0.75rem;
+    border-radius: var(--pico-border-radius);
+}
+
+nav.container ul:last-child a:hover {
+    color: var(--pico-primary);
+    background-color: #eff6ff;
+}
+
+/* The brand link shouldn't look like a nav action. Targeted by class, not
+   position (:first-child) — position-based selectors broke here before:
+   both this rule and the "every link" rule above matched the first <li>
+   of their own <ul> with IDENTICAL specificity, so whichever rule came
+   later in the file silently won regardless of which link it was meant
+   for (it was overriding "Staff Dashboard" back to this color, since
+   that's also the first <li> in its own <ul>). A class has nothing to do
+   with position, so this can't recur no matter what order rules are in. */
+.brand a {
+    color: var(--pico-h1-color);
+}
+
+main.container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+/* Pico already wraps a table's parent in a scrollable figure on overflow;
+   a visible border just makes that boundary and the table itself read as
+   one deliberate block instead of text floating on the page. */
+/* Wraps every <table> in the app (see the .table-scroll divs in the
+   templates) — on a narrow phone, a 5-7 column table can't be shrunk to
+   fit without becoming unreadable, so instead it scrolls horizontally
+   within this box while the rest of the page stays put. Pico doesn't do
+   this automatically; this is plain CSS, not a Pico feature. */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+table {
+    border: 1px solid #e2e8f0;
+}
+
+table th {
+    background-color: var(--color-surface-secondary);
+}
+
+/* Cards/sections used across the staff and resident pages — a subtle
+   border is enough definition; Pico's default shadow is kept minimal on
+   purpose (the brief explicitly asks to avoid heavy shadows/cards). */
+article {
+    border: 1px solid #e2e8f0;
+    box-shadow: none;
+}
+
+/* A row of key numbers (e.g. the staff dashboard's collections/outstanding/
+   overdue/open-complaints summary) — plain text in a row, not boxed cards,
+   per the brief. flex-wrap keeps it readable on narrow screens instead of
+   squeezing four numbers into one line. */
+.stat-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin: 1.5rem 0;
+}
+
+.stat-row > div {
+    min-width: 9rem;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--pico-h1-color);
+}
+
+.stat-label {
+    margin: 0;
+    font-size: 0.9rem;
+    opacity: 0.75;
+}
+
+/* A text+color status/urgency badge used on complaint rows — color is
+   always paired with the visible text inside it, never used alone. */
+.badge {
+    display: inline-block;
+    padding: 0.1em 0.6em;
+    border-radius: var(--pico-border-radius);
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.badge-open { background-color: #dbeafe; color: #1e40af; }
+.badge-in-progress { background-color: #fef3c7; color: #92400e; }
+.badge-resolved { background-color: #dcfce7; color: #166534; }
+/* High urgency is the one genuinely "alert/urgent" badge — uses the
+   accessible crimson from :root as its text color, on a light tint of
+   the same color rather than a plain-red guess. Medium/Low aren't urgent,
+   so they're left as the existing neutral tones. */
+/* #fcebec (not a rounder/darker-looking pink) was picked specifically
+   because it's the lightest tint that still clears 4.5:1 contrast against
+   --color-alert text — a darker pink here reads fine to the eye but
+   actually fails WCAG AA; verified with a real luminance/contrast
+   calculation, not by eye. */
+.badge-high { background-color: #fcebec; color: var(--color-alert); }
+.badge-medium { background-color: #fef3c7; color: #92400e; }
+.badge-low { background-color: #f1f5f9; color: #334155; }
+
+/* The staff complaints filter bar: checkbox groups wrapped onto a few
+   lines instead of Pico's default one-label-per-line fieldset, so 10
+   category checkboxes don't push the actual complaint list off-screen. */
+.filter-bar fieldset {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.25rem;
+    border: none;
+    padding: 0;
+    margin: 0.5rem 0;
+}
+
+.filter-bar legend {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.filter-bar fieldset label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-weight: normal;
+    margin: 0;
+}
+
+/* A compact complaint row for staff — a thin divider between rows instead
+   of a bordered card per row, which was eating vertical space fast on a
+   long filtered list. */
+.complaint-row {
+    padding: 0.85rem 0;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.complaint-row:last-child {
+    border-bottom: none;
+}
+
+.complaint-row form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem;
+    margin-top: 0.5rem;
+}
+
+.complaint-row form > div {
+    margin: 0;
+}
+
+/* Every complaint row/card (both the staff ".complaint-row" divs and the
+   resident page's <article> cards) has id="complaint-{id}" as a jump
+   target for the "linked to"/"other reports" anchor links. Without this,
+   clicking one of those links scrolls the target's top edge to the very
+   top of the viewport — which is exactly where the sticky nav now sits,
+   so it covers the first few lines of whatever was just jumped to.
+   scroll-margin-top tells the browser to stop that distance short of the
+   true top instead, leaving room for the nav. */
+[id^="complaint-"] {
+    scroll-margin-top: var(--nav-height);
+}
+
+/* Briefly flashes a soft yellow background on whatever complaint row/card
+   app.js's highlightFragmentTarget() just scrolled to, fading back to
+   nothing over 2s — makes it obvious which one you jumped to among many
+   similar-looking rows. */
+@keyframes highlight-flash {
+    from { background-color: #fef9c3; }
+    to { background-color: transparent; }
+}
+
+.highlight-flash {
+    animation: highlight-flash 2s ease-out;
+}
+
+/* Groups of [role=button] links (e.g. the homepage's two login buttons,
+   the bills page's Pay Now/Raise a Complaint/My Complaints row) already
+   wrap onto a new line on their own once they run out of horizontal room
+   (Pico makes them display:inline-block) — this just adds a deliberate,
+   even gap between them instead of relying on whatever whitespace happens
+   to fall between the template's lines, so they stay comfortably spaced
+   whether sitting side by side or stacked. */
+.button-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+/* Comfortable tap targets and a bit more breathing room on phones. */
+@media (max-width: 480px) {
+    nav.container ul:last-child a {
+        padding: 0.6rem 0.85rem;
+    }
+
+    .filter-bar fieldset label {
+        padding: 0.2rem 0;
+    }
+}
+
+/* Shared message/banner styles — replaces the inline style="color: red"
+   (and similar) that was scattered across templates with one definition
+   each, using the accessible palette above instead of plain "red"/"white"
+   keywords. */
+.alert-text {
+    color: var(--color-alert);
+    font-weight: 600;
+}
+
+.safety-banner {
+    background-color: var(--color-alert);
+    color: #ffffff;
+    padding: 0.5em;
+    font-weight: 700;
+    border-radius: var(--pico-border-radius);
+}
+
+.success-banner {
+    background-color: #e6f4ea;
+    color: var(--color-success);
+    padding: 0.75em;
+    border: 1px solid #b7dfc3;
+    border-radius: var(--pico-border-radius);
+    font-weight: 600;
+}

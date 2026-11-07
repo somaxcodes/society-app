@@ -1,14 +1,16 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Society App{% endblock %}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/style.css?v={{ asset_version('style.css') }}">
 </head>
 <body>
     <nav class="container">
         <ul>
-            <li><a href="/"><strong>Society App</strong></a></li>
+            <li class="brand"><a href="/"><strong>Society App</strong></a></li>
         </ul>
         <ul>
             {% if request.session.get('user_id') %}
@@ -32,5 +34,7 @@
     <main class="container">
         {% block content %}{% endblock %}
     </main>
+
+    <script src="/static/app.js?v={{ asset_version('app.js') }}"></script>
 </body>
 </html>

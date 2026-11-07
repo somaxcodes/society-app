@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Society App{% endblock %}
+
+{% block content %}
+    <section>
+        <h1>Society App</h1>
+        <p>
+            A simple way for residents and the help-desk staff of this society to
+            handle maintenance bills and complaints online. No paperwork, no
+            waiting at the office.
+        </p>
+    </section>
+
+    <section>
+        <h2>What you can do here</h2>
+        <ul>
+            <li>Residents: view your maintenance bill and pay it, and raise or track complaints.</li>
+            <li>Staff: review collections and overdue flats, match bank payments, and manage complaints.</li>
+        </ul>
+    </section>
+
+    <section class="button-group">
+        <a role="button" href="/login/resident">Resident Login</a>
+        <a role="button" href="/login/staff" class="secondary">Staff Login</a>
+    </section>
+
+    <section>
+        <h2>Need help?</h2>
+        <p>If you have trouble logging in, please contact your society office.</p>
+    </section>
+{% endblock %}

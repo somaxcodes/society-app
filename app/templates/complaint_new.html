@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Raise a Complaint{% endblock %}
+
+{% block content %}
+    <h1>Raise a Complaint</h1>
+
+    <p>
+        Tell us what's wrong in your own words. Plain English is fine.
+        We'll automatically sort it into the right category and urgency
+        for the staff to act on.
+    </p>
+
+    {% if error %}
+    <p class="alert-text">{{ error }}</p>
+    {% endif %}
+
+    <form method="post" action="/complaints/new">
+        <label for="description">What's the problem?</label>
+        <small>For example: "The kitchen tap has been leaking for two days."</small>
+        <textarea id="description" name="description" rows="6" maxlength="1000" required></textarea>
+        <button type="submit">Submit Complaint</button>
+    </form>
+{% endblock %}

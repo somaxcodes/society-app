@@ -5,29 +5,38 @@
 {% block content %}
     <h1>Review Queue</h1>
 
+    <p>
+        These bank transactions could not be matched to a flat with enough
+        confidence to post automatically. Check each one against the
+        "Suggested Flat" column (a best guess only, not applied automatically)
+        and update the resident's bill by hand if you confirm the match.
+    </p>
+
     {% if rows %}
+    <div class="table-scroll">
     <table>
         <tr>
             <th>Date</th>
             <th>Amount</th>
             <th>Reference</th>
             <th>UPI ID</th>
-            <th>Reason</th>
+            <th>Why it needs review</th>
             <th>Suggested Flat</th>
             <th>Suggested Owner</th>
         </tr>
         {% for row in rows %}
         <tr>
             <td>{{ row.date }}</td>
-            <td>{{ row.amount }}</td>
+            <td>{{ row.amount|inr }}</td>
             <td>{{ row.reference }}</td>
             <td>{{ row.upi_id }}</td>
             <td>{{ row.reason }}</td>
-            <td>{{ row.suggested_flat_number or '—' }}</td>
-            <td>{{ row.suggested_owner_name or '—' }}</td>
+            <td>{{ row.suggested_flat_number or 'Not identified' }}</td>
+            <td>{{ row.suggested_owner_name or 'Not identified' }}</td>
         </tr>
         {% endfor %}
     </table>
+    </div>
     {% else %}
     <p>Nothing needs review right now.</p>
     {% endif %}

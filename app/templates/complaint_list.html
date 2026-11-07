@@ -5,13 +5,25 @@
 {% block content %}
     <h1>My Complaints</h1>
 
+    {% if just_submitted %}
+    <p class="success-banner">
+        ✓ Your complaint has been submitted.
+    </p>
+    {% endif %}
+
+    <p>
+        <strong>Open</strong> = received, not yet started ·
+        <strong>In Progress</strong> = staff is working on it ·
+        <strong>Resolved</strong> = fixed
+    </p>
+
     {% if rows %}
     {% for row in rows %}
     {% set complaint = row.complaint %}
     <article id="complaint-{{ complaint.id }}">
         {% if complaint.is_safety_flagged %}
-        <p style="background-color: red; color: white; padding: 0.5em; font-weight: bold;">
-            ⚠ SAFETY FLAGGED — this complaint has been flagged for immediate attention
+        <p class="safety-banner">
+            ⚠ SAFETY FLAGGED: this complaint has been flagged for immediate attention
         </p>
         {% endif %}
 
@@ -19,8 +31,12 @@
 
         <ul>
             <li>Category: {{ complaint.category }}</li>
-            <li>Urgency: {{ complaint.urgency }}</li>
-            <li>Status: {{ complaint.status }}</li>
+            <li>Urgency:
+                <span class="badge badge-{{ complaint.urgency|lower }}">{{ complaint.urgency }}</span>
+            </li>
+            <li>Status:
+                <span class="badge badge-{{ complaint.status|lower|replace(' ', '-') }}">{{ complaint.status }}</span>
+            </li>
             <li>Reported: {{ complaint.created_at }}</li>
         </ul>
 

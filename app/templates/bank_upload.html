@@ -5,13 +5,21 @@
 {% block content %}
     <h1>Upload Bank Statement</h1>
 
+    <p>
+        Upload a CSV export of the bank statement for this period. The file
+        must have exactly these columns, in this order: <code>date</code>,
+        <code>amount</code>, <code>reference</code>, <code>upi_id</code>.
+        Each row will be automatically matched to a flat where possible, or
+        sent to the review queue if it can't be matched with confidence.
+    </p>
+
     {% if error %}
-    <p style="color: red;">{{ error }}</p>
+    <p class="alert-text">{{ error }}</p>
     {% endif %}
 
     <form method="post" action="/bank-upload" enctype="multipart/form-data">
-        <label for="file">Bank statement CSV</label>
+        <label for="file">Bank statement CSV file</label>
         <input type="file" id="file" name="file" accept=".csv" required>
-        <button type="submit">Upload</button>
+        <button type="submit">Upload and Process</button>
     </form>
 {% endblock %}

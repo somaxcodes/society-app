@@ -9,24 +9,71 @@
     <p>No flat is linked to your account, so there's nothing to show here.</p>
     {% else %}
 
-    {% if error %}
-    <p style="color: red;">{{ error }}</p>
+    {% if just_paid %}
+    <p class="success-banner">
+        ✓ Payment received. Thank you!
+    </p>
     {% endif %}
 
-    <ul>
-        <li>Flat number: {{ flat.flat_number }}</li>
-        <li>Owner name: {{ flat.owner_name }}</li>
-        <li>Amount due: {{ bill.amount_due }}</li>
-        <li>Amount paid: {{ bill.amount_paid }}</li>
-        <li>Outstanding: {{ outstanding }}</li>
-        <li>Days overdue: {{ days_overdue }}</li>
-    </ul>
+    {% if error %}
+    <p class="alert-text">{{ error }}</p>
+    {% endif %}
 
-    <form method="post" action="/bills/pay">
-        <label for="amount">Pay amount</label>
-        <input type="number" id="amount" name="amount" step="0.01" min="0" required>
-        <button type="submit">Pay</button>
-    </form>
+    <p>{{ flat.flat_number }} ({{ flat.owner_name }})</p>
+
+    <section style="margin-bottom: 1.5rem;">
+        <p style="margin-bottom: 0.25rem;">Outstanding balance</p>
+        <p style="font-size: 2.5rem; font-weight: 700; margin: 0; {% if is_overdue %}color: #b91c1c;{% endif %}">
+            {{ outstanding|inr }}
+        </p>
+        <p>
+            <strong>{{ payment_status }}</strong>
+            {% if is_overdue %}
+            (overdue by {{ days_overdue }} day{{ "s" if days_overdue != 1 else "" }})
+            {% endif %}
+        </p>
+    </section>
+
+    <div class="table-scroll">
+    <table>
+        <tr><th>Amount due</th><td>{{ bill.amount_due|inr }}</td></tr>
+        <tr><th>Amount paid</th><td>{{ bill.amount_paid|inr }}</td></tr>
+        <tr><th>Outstanding</th><td>{{ outstanding|inr }}</td></tr>
+    </table>
+    </div>
+
+    <section class="button-group" style="margin-top: 1.5rem;">
+        <a role="button" class="success" href="#pay">Pay Now</a>
+        <a role="button" class="secondary" href="/complaints/new">Raise a Complaint</a>
+        <a role="button" class="secondary" href="/complaints">My Complaints</a>
+    </section>
+
+    <section style="margin-top: 1.5rem;">
+        <h2>My Open Complaints</h2>
+        {% if open_complaints %}
+        <ul>
+            {% for complaint in open_complaints %}
+            <li>
+                {{ complaint.description }}
+                <span class="badge badge-{{ complaint.urgency|lower }}">{{ complaint.urgency }}</span>
+                <span class="badge badge-{{ complaint.status|lower|replace(' ', '-') }}">{{ complaint.status }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>You have no open complaints right now.</p>
+        {% endif %}
+    </section>
+
+    <section id="pay" style="margin-top: 1.5rem;">
+        <h2>Make a Payment</h2>
+        <p>Enter an amount up to your outstanding balance of {{ outstanding|inr }}.</p>
+        <form method="post" action="/bills/pay">
+            <label for="amount">Amount to pay (₹)</label>
+            <input type="number" id="amount" name="amount" step="0.01" min="0" max="{{ outstanding }}" required>
+            <button type="submit" class="success">Pay</button>
+        </form>
+    </section>
 
     {% endif %}
 {% endblock %}
