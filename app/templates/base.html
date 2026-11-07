@@ -14,8 +14,11 @@
             {% if request.session.get('user_id') %}
                 {% if request.session.get('role') == 'resident' %}
                 <li><a href="/bills">Bills</a></li>
+                <li><a href="/complaints/new">Raise Complaint</a></li>
+                <li><a href="/complaints">My Complaints</a></li>
                 {% elif request.session.get('role') == 'staff' %}
                 <li><a href="/staff/dashboard">Staff Dashboard</a></li>
+                <li><a href="/staff/complaints">Staff Complaints</a></li>
                 <li><a href="/bank-upload">Bank Upload</a></li>
                 <li><a href="/review-queue">Review Queue</a></li>
                 {% endif %}

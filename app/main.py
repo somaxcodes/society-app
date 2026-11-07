@@ -7,17 +7,18 @@ import os
 from datetime import date, datetime
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.auth import verify_password
+from app.classification import classify_complaint, find_duplicate
 from app.database import Base, SessionLocal, engine, get_db
 from app.matching import match_payment, suggest_flat
 
-from app.models import BankPayment, Bill, Flat, User
+from app.models import BankPayment, Bill, Complaint, Flat, User
 
 # load_dotenv() reads the .env file in the project root and makes its
 # values available via os.getenv(), as if they were set in the environment.
@@ -433,3 +434,182 @@ def pay_bill(
     db.commit()
 
     return RedirectResponse(url="/bills", status_code=303)
+
+
+@app.get("/complaints/new")
+def complaint_new_page(request: Request, user: User = Depends(require_role("resident"))):
+    return templates.TemplateResponse(request, "complaint_new.html")
+
+
+@app.post("/complaints/new")
+def complaint_new(
+    request: Request,
+    # Form(...) treats a submitted-but-empty value as "missing" and rejects
+    # it with a raw 422 before this function body ever runs — Form(default="")
+    # lets an empty string through so our own validation below can give a
+    # friendly re-rendered error instead.
+    description: str = Form(default=""),
+    user: User = Depends(require_role("resident")),
+    db: Session = Depends(get_db),
+):
+    description = description.strip()
+
+    if not description or len(description) > 1000:
+        return templates.TemplateResponse(
+            request,
+            "complaint_new.html",
+            {"error": "Please enter a description between 1 and 1000 characters"},
+        )
+
+    flat = db.query(Flat).filter(Flat.id == user.flat_id).first()
+
+    classification = classify_complaint(description)
+    linked_to_id = find_duplicate(db, flat, classification["category"], description)
+
+    complaint = Complaint(
+        flat_id=flat.id,
+        description=description,
+        category=classification["category"],
+        urgency=classification["urgency"],
+        is_safety_flagged=classification["is_safety_flagged"],
+        linked_to_id=linked_to_id,
+        status="Open",
+    )
+    db.add(complaint)
+    db.commit()
+
+    return RedirectResponse(url="/complaints", status_code=303)
+
+
+@app.get("/complaints")
+def complaint_list(
+    request: Request,
+    user: User = Depends(require_role("resident")),
+    db: Session = Depends(get_db),
+):
+    complaints = (
+        db.query(Complaint)
+        .filter(Complaint.flat_id == user.flat_id)
+        .order_by(Complaint.created_at.desc())
+        .all()
+    )
+
+    rows = []
+    for complaint in complaints:
+        # The complaint this one was linked to as a duplicate (if any) —
+        # looked up fresh each time, by id, rather than relying on a
+        # relationship, since linked_to_id can point at a complaint
+        # belonging to a different flat.
+        linked_from = None
+        if complaint.linked_to_id is not None:
+            linked_from = db.query(Complaint).filter(Complaint.id == complaint.linked_to_id).first()
+
+        # Other complaints that point back at THIS one — i.e. this
+        # complaint is the "original" and these are its duplicates.
+        linked_duplicates = db.query(Complaint).filter(Complaint.linked_to_id == complaint.id).all()
+
+        rows.append(
+            {
+                "complaint": complaint,
+                "linked_from": linked_from,
+                "linked_duplicates": linked_duplicates,
+            }
+        )
+
+    return templates.TemplateResponse(request, "complaint_list.html", {"rows": rows})
+
+
+# These must stay in sync with the CheckConstraints on Complaint in
+# app/models.py — they're the single source of truth for what's valid;
+# these lists are just this file's own copy to build checkboxes/dropdowns
+# and to validate the staff update form against.
+ALL_CATEGORIES = [
+    "plumbing", "electrical", "lift", "security", "cleaning",
+    "safety", "structural", "parking", "noise", "other",
+]
+ALL_STATUSES = ["Open", "In Progress", "Resolved"]
+
+# Lower number = higher priority. Used only for the "urgency" sort below.
+URGENCY_RANK = {"High": 0, "Medium": 1, "Low": 2}
+
+
+@app.get("/staff/complaints")
+def staff_complaints_page(
+    request: Request,
+    sort: str = "urgency",
+    category: list[str] = Query(default=[]),
+    status: list[str] = Query(default=[]),
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    query = db.query(Complaint)
+
+    # No category/status checkboxes ticked means "show all" — only filter
+    # when the staff member actually chose something.
+    if category:
+        query = query.filter(Complaint.category.in_(category))
+    if status:
+        query = query.filter(Complaint.status.in_(status))
+
+    complaints = query.all()
+
+    if sort == "latest":
+        complaints.sort(key=lambda complaint: complaint.created_at, reverse=True)
+    else:
+        # Default: urgency tier first (High, Medium, Low), newest first
+        # within each tier. Sorting by a tuple does both in one pass —
+        # Python sorts tuples left-to-right, so rank is the primary key
+        # and the negative timestamp (newest = largest = sorts first) is
+        # the tiebreaker.
+        complaints.sort(
+            key=lambda complaint: (
+                URGENCY_RANK.get(complaint.urgency, 99),
+                -complaint.created_at.timestamp(),
+            )
+        )
+
+    # Staff see every complaint, not just one flat's, so each row needs its
+    # own flat_number to show which flat it came from.
+    flats_by_id = {flat.id: flat for flat in db.query(Flat).all()}
+    rows = [
+        {"complaint": complaint, "flat_number": flats_by_id[complaint.flat_id].flat_number}
+        for complaint in complaints
+    ]
+
+    return templates.TemplateResponse(
+        request,
+        "staff_complaints.html",
+        {
+            "rows": rows,
+            "sort": sort,
+            "selected_categories": category,
+            "selected_statuses": status,
+            "all_categories": ALL_CATEGORIES,
+            "all_statuses": ALL_STATUSES,
+        },
+    )
+
+
+@app.post("/staff/complaints/{complaint_id}/update")
+def staff_complaint_update(
+    complaint_id: int,
+    category: str = Form(...),
+    status: str = Form(...),
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    # This is an internal staff control, not a public form, so on bad input
+    # (a tampered request, a stale form from before a category was renamed)
+    # we just redirect back to the list rather than showing an error page.
+    if category not in ALL_CATEGORIES or status not in ALL_STATUSES:
+        return RedirectResponse(url="/staff/complaints", status_code=303)
+
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if complaint is None:
+        return RedirectResponse(url="/staff/complaints", status_code=303)
+
+    complaint.category = category
+    complaint.status = status
+    db.commit()
+
+    return RedirectResponse(url="/staff/complaints", status_code=303)

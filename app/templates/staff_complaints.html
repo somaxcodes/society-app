@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block title %}Staff Complaints{% endblock %}
+
+{% block content %}
+    <h1>Staff Complaints</h1>
+
+    <form method="get" action="/staff/complaints">
+        <label for="sort">Sort by</label>
+        <select id="sort" name="sort">
+            <option value="urgency" {% if sort == 'urgency' %}selected{% endif %}>Urgency</option>
+            <option value="latest" {% if sort == 'latest' %}selected{% endif %}>Latest</option>
+        </select>
+
+        <fieldset>
+            <legend>Category</legend>
+            {% for cat in all_categories %}
+            <label>
+                <input type="checkbox" name="category" value="{{ cat }}" {% if cat in selected_categories %}checked{% endif %}>
+                {{ cat }}
+            </label>
+            {% endfor %}
+        </fieldset>
+
+        <fieldset>
+            <legend>Status</legend>
+            {% for stat in all_statuses %}
+            <label>
+                <input type="checkbox" name="status" value="{{ stat }}" {% if stat in selected_statuses %}checked{% endif %}>
+                {{ stat }}
+            </label>
+            {% endfor %}
+        </fieldset>
+
+        <button type="submit">Apply Filters</button>
+    </form>
+
+    <hr>
+
+    {% if rows %}
+    {% for row in rows %}
+    {% set complaint = row.complaint %}
+    <article>
+        {% if complaint.is_safety_flagged %}
+        <p style="background-color: red; color: white; padding: 0.5em; font-weight: bold;">
+            ⚠ SAFETY FLAGGED — this complaint has been flagged for immediate attention
+        </p>
+        {% endif %}
+
+        <ul>
+            <li>Flat: {{ row.flat_number }}</li>
+            <li>Description: {{ complaint.description }}</li>
+            <li>Category: {{ complaint.category }}</li>
+            <li>Urgency: {{ complaint.urgency }}</li>
+            <li>Status: {{ complaint.status }}</li>
+            <li>Reported: {{ complaint.created_at }}</li>
+        </ul>
+
+        <form method="post" action="/staff/complaints/{{ complaint.id }}/update">
+            <label for="category-{{ complaint.id }}">Category</label>
+            <select id="category-{{ complaint.id }}" name="category">
+                {% for cat in all_categories %}
+                <option value="{{ cat }}" {% if cat == complaint.category %}selected{% endif %}>{{ cat }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="status-{{ complaint.id }}">Status</label>
+            <select id="status-{{ complaint.id }}" name="status">
+                {% for stat in all_statuses %}
+                <option value="{{ stat }}" {% if stat == complaint.status %}selected{% endif %}>{{ stat }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">Update</button>
+        </form>
+    </article>
+    {% endfor %}
+    {% else %}
+    <p>No complaints match the current filters.</p>
+    {% endif %}
+{% endblock %}
