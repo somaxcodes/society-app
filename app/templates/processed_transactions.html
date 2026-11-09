@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Processed Transactions{% endblock %}
+
+{% block content %}
+    <h1>Processed Transactions</h1>
+
+    <p>
+        Every bank transaction that was matched automatically or flagged as
+        a duplicate, across every upload. Rows still waiting on a human are
+        on the <a href="/review-queue">Review Queue</a> instead.
+    </p>
+
+    <div class="stat-row">
+        <div>
+            <p class="stat-value">{{ total }}</p>
+            <p class="stat-label">Total processed</p>
+        </div>
+        <div>
+            <p class="stat-value">{{ counts.matched }}</p>
+            <p class="stat-label">Matched</p>
+        </div>
+        <div>
+            <p class="stat-value">{{ counts.duplicate }}</p>
+            <p class="stat-label">Duplicate</p>
+        </div>
+    </div>
+
+    {% if rows %}
+    <div class="table-scroll">
+    <table>
+        <tr>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Reference</th>
+            <th>UPI ID</th>
+            <th>Matched Flat</th>
+            <th>Status</th>
+        </tr>
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.date }}</td>
+            <td>{{ row.amount|inr }}</td>
+            <td>{{ row.reference }}</td>
+            <td>{{ row.upi_id }}</td>
+            <td>{{ row.matched_flat_number or 'Not identified' }}</td>
+            <td>
+                <span class="badge {{ 'badge-resolved' if row.status_label == 'Matched' else 'badge-low' }}">{{ row.status_label }}</span>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+    {% else %}
+    <p>No transactions have been matched or flagged as duplicates yet.</p>
+    {% endif %}
+{% endblock %}

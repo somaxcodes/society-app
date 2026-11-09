@@ -686,6 +686,50 @@ def review_queue(
     return templates.TemplateResponse(request, "review_queue.html", {"rows": rows})
 
 
+@app.get("/staff/processed-transactions")
+def processed_transactions(
+    request: Request,
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    """
+    The parallel of /review-queue, for the two statuses that route doesn't
+    show: every row that was auto-matched or flagged as a duplicate, across
+    every upload ever done -- these previously only ever appeared once, as
+    a count on the one-time upload results page, then were gone.
+    """
+    processed = (
+        db.query(BankPayment)
+        .filter(BankPayment.status.in_(["matched", "duplicate"]))
+        .order_by(BankPayment.date.desc())
+        .all()
+    )
+
+    flats_by_id = {flat.id: flat for flat in db.query(Flat).all()}
+
+    rows = []
+    counts = {"matched": 0, "duplicate": 0}
+    for payment in processed:
+        matched_flat = flats_by_id.get(payment.matched_flat_id)
+        rows.append(
+            {
+                "date": payment.date,
+                "amount": payment.amount,
+                "reference": payment.reference,
+                "upi_id": payment.upi_id,
+                "matched_flat_number": matched_flat.flat_number if matched_flat else None,
+                "status_label": "Matched" if payment.status == "matched" else "Duplicate",
+            }
+        )
+        counts[payment.status] += 1
+
+    return templates.TemplateResponse(
+        request,
+        "processed_transactions.html",
+        {"rows": rows, "counts": counts, "total": len(rows)},
+    )
+
+
 @app.post("/bills/pay")
 def pay_bill(
     request: Request,
