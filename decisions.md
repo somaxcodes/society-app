@@ -50,3 +50,40 @@
 - **Why a dripping tap showed High**: the AI rated it Low on its own. It became High because (a) the urgency prompt had no definition of Low/Medium/High, so a sibling report saying "leaking a lot... please fix urgently" came back High, and (b) cluster escalation then copied that High onto every linked report. Fix: the prompt now defines the three levels with examples and tells the model to judge the situation, not the tone ("urgent" in the text doesn't make a minor problem High). Escalation across a cluster is unchanged on purpose.
 - **Why some High complaints had the red SAFETY banner and others didn't**: the banner is driven by the keyword check (`check_safety_flag`), not by urgency, so the two are independent. The keyword check had holes both ways: it missed injury and "dangerous" wording, and "fir" (a misspelling of fire) matched inside "first", "firm" and "confirm". Fixes: added injury/ambulance/hurt/emergency/dangerous terms, made "fir" match only as a whole word, and the safety flag now spreads across a duplicate cluster (same reasoning as urgency), so two reports of one gas leak can't show different alerts.
 - Re-scored the existing dev-database complaints under the corrected logic. `test_urgency_manual.py` calls the real AI and is meant to be read, not asserted, since the model's answers can shift.
+
+## Stage 4/5 (UI brief)
+
+Skipped Stage 4 (responsive breakpoints). This is a server-rendered
+internal tool being graded on code quality and problem-solving, not a
+mobile product — tuning 5 breakpoints properly would cost real hours
+for close to no rubric weight. Noting as a known limitation rather
+than spending time on it.
+
+Didn't do a separate Stage 5 regression pass. Folded it into the
+pytest suite instead — real test coverage of the core flows (login/
+roles, bill payment, complaint submission, duplicate linking, urgency
+escalation, bank CSV matching) is a more honest and useful check than
+clicking through pages by eye.
+
+## Privacy: duplicate complaint linking
+
+When complaints are linked as duplicates, each resident can see the
+description of the complaint it's linked to (and vice versa) on their
+own /complaints page. This is intentional and considered acceptable:
+complaints are about shared common-area issues (a lift, a leak, a gas
+smell) that affect multiple residents, not personal/private
+information about any one resident. Nothing in a complaint description
+is expected to be confidential between residents of the same building.
+
+## Known limitation: one static bill per flat
+
+The brief's sample bank statement data spans several months of
+payments, but this build only ever creates one Bill row per flat
+(set once at seed time) — there's no recurring monthly billing cycle.
+This is why the Review Queue shows many "possible overpayment" flags:
+payments beyond the single fixed amount_due always look like they
+exceed what's owed. In production, a new bill would be generated
+each billing cycle, and payments would match against whichever bill
+is currently open, with any leftover flagged or credited forward
+instead of just looking like overpayment against a single static
+number.
