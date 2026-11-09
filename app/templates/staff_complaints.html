@@ -17,7 +17,7 @@
     <form method="get" action="/staff/complaints" class="filter-bar">
         <div>
             <label for="sort">Sort by</label>
-            <select id="sort" name="sort" style="max-width: 16rem;">
+            <select id="sort" name="sort" class="dropdown-filter-toggle">
                 <option value="urgency" {% if sort == 'urgency' %}selected{% endif %}>Urgency (High first)</option>
                 <option value="latest" {% if sort == 'latest' %}selected{% endif %}>Latest first</option>
             </select>

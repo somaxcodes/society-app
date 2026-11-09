@@ -314,6 +314,13 @@ article {
 .badge-medium { background-color: #fef3c7; color: #92400e; }
 .badge-low { background-color: #eceff1; color: #37474f; }
 
+/* "Not identified" on the Processed Transactions page (a duplicate row
+   with no matched flat) — a distinct neutral from badge-low (used for the
+   "Duplicate" status badge right next to it), so the two don't blend
+   together, and from the accent-teal/green badges, so it doesn't look
+   like a result worth confirming. */
+.badge-unidentified { background-color: #f1f1f1; color: #616161; border: 1px solid #d0d0d0; }
+
 /* The staff complaints filter bar — a plain row of inline controls. */
 .filter-bar {
     display: flex;

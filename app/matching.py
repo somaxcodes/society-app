@@ -129,7 +129,7 @@ def match_payment(row: dict, flats: list, existing_references: set) -> tuple[str
         return (
             "needs_review",
             None,
-            "Flat identified, but already fully paid — possible duplicate or advance payment",
+            "Flat identified, but already fully paid. Possible duplicate or advance payment.",
         )
 
     """
@@ -141,7 +141,7 @@ def match_payment(row: dict, flats: list, existing_references: set) -> tuple[str
         return (
             "needs_review",
             None,
-            "Flat identified, but payment amount exceeds what is currently owed — possible overpayment, needs confirmation",
+            "Flat identified, but payment amount exceeds what is currently owed. Possible overpayment, needs confirmation.",
         )
 
     return ("matched", tentative_flat.id, f"Matched: {match_reason}")

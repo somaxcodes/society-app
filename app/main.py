@@ -530,7 +530,7 @@ def bank_upload(
         return templates.TemplateResponse(
             request,
             "bank_upload.html",
-            {"error": "Invalid file format — expected columns: date, amount, reference, upi_id"},
+            {"error": "Invalid file format. Expected columns: date, amount, reference, upi_id"},
         )
 
     expected_columns = ["date", "amount", "reference", "upi_id"]
@@ -538,7 +538,7 @@ def bank_upload(
         return templates.TemplateResponse(
             request,
             "bank_upload.html",
-            {"error": "Invalid file format — expected columns: date, amount, reference, upi_id"},
+            {"error": "Invalid file format. Expected columns: date, amount, reference, upi_id"},
         )
 
     """
