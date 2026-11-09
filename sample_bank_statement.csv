@@ -1,0 +1,16 @@
+date,amount,reference,upi_id
+2026-11-01,9100,FLAT T18-1104 Maintenance Nov,vikram.singh@upi
+2026-11-01,4200,UPI/778821/Payment,randomuser77@upi
+2026-11-02,5525,T03 0501 Maint Payment,priya.nair@upi
+2026-11-02,3000,T09-0210 Maintenance partial,fatima.ali@upi
+2026-11-03,150,ATM FEE REVERSAL NOV,bankops@system
+2026-11-03,7800,T15-0902 Maintenance Nov,rajesh.verma@upi
+2026-11-04,7000,T21-1601 Maintenance Nov,aamir.shaikh@upi
+2026-11-04,2000,NEFT Payment Nov,fatima.ali@upi
+2026-11-05,9100,FLAT T18-1104 Maintenance Nov,vikram.singh@upi
+2026-11-05,2750,NEFT TRANSFER 00913,colleague.transfer@upi
+2026-11-06,4000,T09-0210 Maintenance Nov,fatima.ali@upi
+2026-11-06,6370,MAINT T12-0408 NOV,swati.joshi@upi
+2026-11-07,325,REF NEFT00881,strangerpay@upi
+2026-11-08,7475,FLAT T07-1203 Maintenance Nov,neeraj.kulkarni@upi
+2026-11-08,100,SERVICE CHARGE DEBIT REVERSAL,feesystem@bank
