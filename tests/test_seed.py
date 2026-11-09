@@ -66,8 +66,8 @@ def test_reseeding_includes_a_safety_flagged_complaint(db_session):
 """
 TEST: reseeding includes a High-urgency complaint that is NOT safety-flagged
 Example: among the seeded complaints, at least one has urgency="High" and
-is_safety_flagged=False -- so the amber "AI flagged this as high-risk, no
-safety keyword matched" banner is visible on page load too.
+is_safety_flagged=False -- so the amber "High priority" banner (urgency
+High, no safety keyword matched) is visible on page load too.
 """
 def test_reseeding_includes_a_high_urgency_unflagged_complaint(db_session):
     run_seed(db_session)

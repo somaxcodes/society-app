@@ -215,10 +215,9 @@ def run_seed(db):
             "urgency": "High",
             "status": "Open",
         },
-        # High urgency but NOT safety-flagged: demonstrates the amber "AI
-        # flagged this as potentially high-risk, no safety keyword matched"
-        # banner. Wording deliberately avoids every check_safety_flag()
-        # keyword.
+        # High urgency but NOT safety-flagged: demonstrates the amber "High
+        # priority" banner (urgency High, no safety keyword matched). Wording
+        # deliberately avoids every check_safety_flag() keyword.
         {
             "flat_number": "T09-0210",
             "description": (

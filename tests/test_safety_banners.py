@@ -19,7 +19,7 @@ Complaints") and staff ("Staff Complaints") pages actually render that way.
 from app.models import Complaint
 
 RED_BANNER_TEXT = "SAFETY FLAGGED"
-AMBER_BANNER_TEXT = "AI flagged this as potentially high-risk"
+AMBER_BANNER_TEXT = "High priority: this looks serious and needs a quick check."
 
 
 def make_complaint(db, flat, urgency, safety_flagged):
