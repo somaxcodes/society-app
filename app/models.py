@@ -128,6 +128,21 @@ class BankPayment(Base):
 
 
 """
+Table: bank_upload_log
+One row per successful /bank-upload submission (not per CSV line - that's
+bank_payments). Used only to show "Last uploaded: <filename> at <time>" on
+the Bank Upload page, so staff can tell at a glance whether this period's
+statement has already gone in.
+"""
+class BankUploadLog(Base):
+    __tablename__ = "bank_upload_log"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    filename: Mapped[str]
+    uploaded_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+
+
+"""
 Table: complaints
 One row per resident complaint. The classification logic (category,
 urgency, duplicate detection via linked_to_id) lives elsewhere — this

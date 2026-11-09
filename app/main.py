@@ -20,7 +20,7 @@ from app.classification import classify_complaint, find_duplicate
 from app.database import Base, SessionLocal, engine, get_db
 from app.matching import match_payment, suggest_flat
 
-from app.models import BankPayment, Bill, Complaint, Flat, User
+from app.models import BankPayment, BankUploadLog, Bill, Complaint, Flat, User
 
 """
 load_dotenv() reads the .env file in the project root and makes its
@@ -455,8 +455,13 @@ def staff_dashboard(
 
 
 @app.get("/bank-upload")
-def bank_upload_page(request: Request, user: User = Depends(require_role("staff"))):
-    return templates.TemplateResponse(request, "bank_upload.html")
+def bank_upload_page(
+    request: Request,
+    user: User = Depends(require_role("staff")),
+    db: Session = Depends(get_db),
+):
+    last_upload = db.query(BankUploadLog).order_by(BankUploadLog.uploaded_at.desc()).first()
+    return templates.TemplateResponse(request, "bank_upload.html", {"last_upload": last_upload})
 
 
 def parse_bank_row(row: dict) -> tuple[float, date]:
@@ -631,6 +636,7 @@ def bank_upload(
         """
         existing_references.add(row["reference"])
 
+    db.add(BankUploadLog(filename=file.filename))
     db.commit()
 
     return templates.TemplateResponse(

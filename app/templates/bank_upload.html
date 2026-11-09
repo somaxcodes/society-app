@@ -17,6 +17,10 @@
     <p class="alert-text">{{ error }}</p>
     {% endif %}
 
+    {% if last_upload %}
+    <p>Last uploaded: {{ last_upload.filename }} at {{ last_upload.uploaded_at }}</p>
+    {% endif %}
+
     <form method="post" action="/bank-upload" enctype="multipart/form-data">
         <label for="file">Bank statement CSV file</label>
         <input type="file" id="file" name="file" accept=".csv" required>

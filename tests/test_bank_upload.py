@@ -23,7 +23,7 @@ import re
 
 import pytest
 
-from app.models import BankPayment, Bill, Flat
+from app.models import BankPayment, BankUploadLog, Bill, Flat
 
 CSV_HEADER = "date,amount,reference,upi_id\n"
 INVALID_FORMAT_MESSAGE = "Invalid file format"
@@ -417,3 +417,35 @@ def test_error_mentions_how_many_other_rows_are_bad(staff_client, flats_with_bil
 
     assert "Line 2: amount 'abc' is not a valid number" in page_text(response)
     assert "and 1 more problem row" in page_text(response)
+
+
+# --- Last-uploaded-filename log ----------------------------------------------
+
+
+"""
+TEST: a successful upload creates a bank upload log row with the filename
+Example: upload "october_statement.csv" -> one BankUploadLog row exists,
+with that exact filename.
+"""
+def test_successful_upload_creates_a_bank_upload_log_row_with_the_filename(
+    staff_client, db_session, flats_with_bills
+):
+    upload(staff_client, MIXED_CSV, filename="october_statement.csv")
+
+    logs = db_session.query(BankUploadLog).all()
+    assert len(logs) == 1
+    assert logs[0].filename == "october_statement.csv"
+
+
+"""
+TEST: the bank upload page shows the last uploaded filename
+Example: upload "october_statement.csv", then load GET /bank-upload -> the
+page text contains that filename.
+"""
+def test_bank_upload_page_shows_the_last_uploaded_filename(staff_client, flats_with_bills):
+    upload(staff_client, MIXED_CSV, filename="october_statement.csv")
+
+    response = staff_client.get("/bank-upload")
+
+    assert response.status_code == 200
+    assert "october_statement.csv" in response.text
