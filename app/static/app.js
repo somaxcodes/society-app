@@ -41,9 +41,18 @@ function initDropdownFilters() {
         const toggle = dropdown.querySelector(".dropdown-filter-toggle");
         const panel = dropdown.querySelector(".dropdown-filter-panel");
         const label = toggle.dataset.label;
-        const checkboxes = panel.querySelectorAll('input[type="checkbox"]');
+        const checkboxes = panel.querySelectorAll('input[type="checkbox"], input[type="radio"]');
+        // A single-choice list (the sort order) shows the chosen option's
+        // own name on the button and closes after a pick, instead of the
+        // "Label (N)" count the multi-select filters use.
+        const isSingleChoice = panel.querySelector('input[type="radio"]') !== null;
 
         function updateToggleText() {
+            if (isSingleChoice) {
+                const chosen = Array.from(checkboxes).find((input) => input.checked);
+                toggle.textContent = chosen ? chosen.parentElement.textContent.trim() : label;
+                return;
+            }
             const checkedCount = Array.from(checkboxes).filter((cb) => cb.checked).length;
             toggle.textContent = checkedCount > 0 ? `${label} (${checkedCount})` : `${label}: All`;
         }
@@ -60,7 +69,13 @@ function initDropdownFilters() {
             toggle.setAttribute("aria-expanded", String(willOpen));
         });
 
-        checkboxes.forEach((checkbox) => checkbox.addEventListener("change", updateToggleText));
+        checkboxes.forEach((checkbox) => checkbox.addEventListener("change", () => {
+            updateToggleText();
+            if (isSingleChoice) {
+                panel.hidden = true;
+                toggle.setAttribute("aria-expanded", "false");
+            }
+        }));
 
         // Reflects whatever's already checked on page load — important
         // because the server re-renders these checkboxes as checked based

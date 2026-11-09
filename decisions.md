@@ -95,4 +95,4 @@ max-width: 480px block) after the Stage 4 skip decision. It makes the
 header scroll away instead of staying sticky (the staff nav wraps to
 several lines), wraps long unbroken text, makes the filter controls
 fill the row, and shrinks the large stat numbers. Reviewed from the
-CSS, not verified on a real device.
+CSS, then checked on a real phone by the author, where it works fine.

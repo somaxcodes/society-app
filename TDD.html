@@ -1,0 +1,131 @@
+<h1>Society App: Technical Design Document</h1>
+<h2>1. Links</h2>
+<ul>
+<li>GitHub: https://github.com/somaxcodes/society-app</li>
+<li>Live (Render): https://society-app-4t15.onrender.com</li>
+</ul>
+<h2>2. Architecture and why</h2>
+<h3>The stack</h3>
+<ul>
+<li><strong>Web framework:</strong> FastAPI. Pages are rendered on the server with Jinja2 templates. There is no separate frontend app and no JavaScript framework.</li>
+<li><strong>Database:</strong> SQLite, accessed through SQLAlchemy 2.x. The whole database is one file, <code>society.db</code>.</li>
+<li><strong>Styling:</strong> Pico.css (loaded from a CDN in <code>base.html</code>) plus one custom stylesheet, <code>app/static/style.css</code>. A small <code>app.js</code> handles the filter dropdowns and the highlight when you jump to a linked complaint.</li>
+<li><strong>Auth:</strong> email and password. Passwords are hashed with bcrypt, and a signed session cookie (Starlette <code>SessionMiddleware</code>) keeps you logged in. The app refuses to start without a <code>SECRET_KEY</code> in the environment.</li>
+<li><strong>AI:</strong> the Groq API, using the <code>openai/gpt-oss-20b</code> model.</li>
+<li><strong>Deploy:</strong> Render free tier, deployed from the GitHub repo.</li>
+<li><strong>Tests:</strong> pytest. At the time of writing there are 259 tests.</li>
+</ul>
+<h3>Why this stack</h3>
+<p>I wanted one person to finish a working, deployed app in about a week, so I picked tools with very little setup. SQLite needs no database server. Jinja2 means no separate API layer and no frontend build step. Pico.css gives a readable, mobile-friendly base without a design system of my own. FastAPI and SQLAlchemy are tools I could move quickly in.</p>
+<p>The cost is real, though. SQLite on Render's free tier loses its data when the service restarts, so the app seeds itself on startup when the database is empty. A real deployment would use a hosted database.</p>
+<h2>3. Data model, main flows, and how the AI part works</h2>
+<h3>Data model</h3>
+<p>Defined in <code>app/models.py</code>.</p>
+<ul>
+<li><strong>User:</strong> email (unique), bcrypt-hashed password, <code>role</code> ("resident" or "staff"), and an optional <code>flat_id</code>. Staff have no flat.</li>
+<li><strong>Flat:</strong> flat number (unique, like <code>T07-1203</code>), owner name, area in sqft, and the owner's UPI ID. The part before the dash is treated as the tower.</li>
+<li><strong>Bill:</strong> belongs to a flat. Holds <code>amount_due</code>, <code>amount_paid</code> (starts at 0) and <code>due_date</code>. In the seed data, <code>amount_due</code> is area times ₹6.50.</li>
+<li><strong>BankPayment:</strong> one row for every line in an uploaded bank statement. It stores the date, amount, reference, UPI ID, the matched flat if there is one, a <code>status</code> ("matched", "needs_review" or "duplicate") and a plain-English <code>reason</code>. A database check constraint limits the status values.</li>
+<li><strong>BankUploadLog:</strong> one row per successful upload, with the filename and time. The Bank Upload page shows the latest one.</li>
+<li><strong>Complaint:</strong> flat, description, category, urgency, status, <code>created_at</code>, <code>resolved_at</code>, <code>is_safety_flagged</code>, and <code>linked_to_id</code>. When a complaint is a duplicate, <code>linked_to_id</code> points at the original. Check constraints limit category, urgency and status.</li>
+</ul>
+<h3>Flow 1: bill payment</h3>
+<ul>
+<li>A resident logs in and sees their flat's bill: amount due, amount paid, outstanding balance, days overdue, and their open complaints.</li>
+<li>They enter an amount and submit.</li>
+<li>The server rejects zero, negative, or anything above the outstanding balance.</li>
+<li>Otherwise it adds the amount to <code>amount_paid</code> and redirects back with a "payment received" banner.</li>
+</ul>
+<p>There is no real payment gateway. The payment is only recorded.</p>
+<h3>Flow 2: bank statement matching</h3>
+<p>Staff upload a CSV with the columns <code>date, amount, reference, upi_id</code>, in that order.</p>
+<p><strong>Validation</strong>
+- Every row is parsed and checked before anything is saved.
+- One bad amount or date rejects the whole file, with a message naming the line.
+- That way a statement is never left half imported.</p>
+<p><strong>Matching</strong> (<code>match_payment()</code> in <code>app/matching.py</code>, which never touches the database)
+- A reference already seen, in an earlier upload or earlier in the same file, makes the row a duplicate.
+- Otherwise it looks for a flat number inside the reference text. Dashes and spaces are ignored, so "T07 1203" matches "T07-1203".
+- It also looks for a UPI ID that matches a flat exactly.
+- If the flat number and UPI ID agree, or only the UPI ID matches, that flat is the candidate.
+- If they point at different flats, or only the flat number matched, the row goes to review.
+- An amount that happens to match what some flat owes is used only to explain a review reason. It never matches a row by itself.
+- If the candidate flat is already fully paid, or the payment is more than it owes, the row goes to review.
+- Otherwise the row is matched and the bill's <code>amount_paid</code> goes up immediately.</p>
+<p><strong>Staff pages</strong>
+- The upload result page shows the counts and the rows needing review.
+- The Review Queue lists every <code>needs_review</code> row, with a best-guess flat shown for reference only.
+- The Processed Transactions page lists every matched and duplicate row.</p>
+<h3>Flow 3: complaint filing with AI classification</h3>
+<ul>
+<li>A resident types a description. The server trims it and checks that it is 1 to 1000 characters.</li>
+<li>The complaint is classified, checked for duplicates, saved as "Open", and the resident lands on their list with a confirmation banner.</li>
+<li>Staff see every complaint sorted by urgency (High first, newest first within a level) and can filter by category and status.</li>
+<li>Staff can change a complaint's category and status.</li>
+</ul>
+<h3>How the AI part works</h3>
+<p>This lives in <code>app/classification.py</code>, <code>app/safety_check.py</code> and <code>app/main.py</code>. It runs in six steps.</p>
+<p><strong>1. The safety check runs first, with no AI.</strong>
+- <code>check_safety_flag()</code> is plain keyword matching.
+- It handles common misspellings, text broken up by spaces or punctuation (like "g.as le-ak"), and a few hand-picked word stems.
+- Some words count on their own: fire, smoke, shock, collapse, trapped, injured.
+- Some count only in pairs: lift with stuck, gas with leak or smell, wire with spark, live with wire.
+- A structural rule pairs a danger word like "cracking" or "wobbly" with a structural noun like "ceiling" or "railing". "My chair is wobbling" is not flagged.
+- Short words like "fir" match only as whole words, so "first floor" is not flagged.
+- The check is literal on purpose. Section 5 covers the tradeoff.</p>
+<p><strong>2. Groq classification.</strong>
+- One Groq call at temperature 0 returns JSON with a <code>category</code> and an <code>urgency</code>.
+- The prompt lists the allowed categories and defines Low, Medium and High with examples.
+- It tells the model to judge the real situation, not how urgent the message sounds.</p>
+<p><strong>3. Fallback.</strong>
+- If the call fails (bad key, timeout, invalid JSON, retired model), the category becomes "other" and the urgency "Medium".
+- If the call works but a value isn't allowed, such as "banana", only that field falls back. A valid urgency survives a nonsense category.
+- A broken AI never blocks a complaint from being filed.</p>
+<p><strong>4. The safety override.</strong>
+- If the keyword check fired, urgency is forced to High.
+- This runs last, so it beats both the AI's answer and the fallback.</p>
+<p><strong>5. Duplicate linking.</strong> <code>find_duplicate()</code> narrows candidates without any AI call first.
+- A candidate must share the category and tower, still be Open or In Progress, and have been filed within the last 7 days.
+- Groq is then asked, once per candidate and oldest first, whether the two complaints describe the same underlying problem.
+- A "yes" links the new complaint to that candidate.
+- Any error returns "no duplicate", so a broken duplicate check never blocks filing either.
+- Links always point at the oldest complaint, so a cluster is a star shape and "everything about this issue" is one simple query.</p>
+<p><strong>6. Cluster escalation.</strong> When a new complaint is linked, <code>escalate_duplicate_cluster_urgency()</code> takes over.
+- It finds the true root of the cluster and points the new complaint at it.
+- It then sets every complaint in the cluster to the highest urgency among them.
+- If any one of them is safety-flagged, all of them are.
+- Urgency only goes up this way, never down.</p>
+<p><strong>What the pages show</strong>
+- A red banner for <code>is_safety_flagged</code>.
+- An amber "High priority" banner when urgency is High but no safety keyword matched. That means the AI rated it High, either directly or through a linked duplicate, without a keyword confirming it.</p>
+<h2>4. UI and design decisions</h2>
+<ul>
+<li><strong>Separate staff and resident views.</strong> Each role gets its own navigation and pages. Residents see only their own flat's bill and complaints, and staff see every flat plus the bank tools. <code>require_role()</code> returns 401 if you aren't logged in and 403 if you have the wrong role. The brief only defined these two roles, so there is no committee role. The "committee dashboard" is simply the staff dashboard.</li>
+<li><strong>Color-coded badges and banners.</strong> Urgency and status appear as badges with the text always visible, so color is never the only signal. Safety gets its own red banner instead of reusing "High", because the two come from different places: the banner from the keyword check, urgency from the AI or the escalation rules. The amber banner lets staff tell "a keyword confirmed danger" from "only the AI rated it High".</li>
+<li><strong>Pico.css, not a custom framework.</strong> It is readable and responsive out of the box, needs no build step, and keeps the markup as plain semantic HTML. My own CSS on top handles the palette, cards, badges and hover states. <code>docs/design-brief.md</code> asked for large readable text, good contrast, big buttons and clear labels, since some users may be elderly or not at ease with technology. Pico made those basics easier to get right than starting from nothing.</li>
+<li><strong>Plain error messages.</strong> The login page shows the same error for an unknown email and a wrong password, so it can't be used to find out which emails have accounts.</li>
+</ul>
+<h2>5. What was cut and what's next</h2>
+<h3>Cut or skipped</h3>
+<ul>
+<li><strong>Stage 4 (responsive breakpoints) was skipped.</strong> This is a server-rendered internal tool, and tuning breakpoints properly would have cost hours for little benefit, so it went down as a known limitation. A small mobile pass came later (one max-width: 480px block). I have since checked it on an actual phone and it works fine.</li>
+<li><strong>Stage 5 (a separate regression pass) was folded into pytest.</strong> Tests covering login and roles, bill payment, complaint submission, duplicate linking, urgency escalation and bank CSV matching seemed a more honest check than clicking through pages. The AI calls are replaced with fakes in the tests. <code>test_urgency_manual.py</code> calls the real AI and is meant to be read by a person, not asserted.</li>
+<li><strong>OTP login was not built.</strong> The brief asked for it, but email and password with hashed passwords and a signed cookie is simpler and secure enough for a demo.</li>
+<li><strong>No committee role.</strong> See section 4.</li>
+</ul>
+<h3>Known limitations</h3>
+<ul>
+<li><strong>One static bill per flat.</strong> The brief's sample bank statement covers several months, but the app creates one <code>Bill</code> per flat at seed time and has no monthly billing cycle. That is why the Review Queue shows so many "possible overpayment" flags: any payment past the single fixed amount looks like an overpayment. A real system would create a bill each cycle, match payments against the open one, and credit forward or flag leftovers.</li>
+<li><strong>Free-tier storage resets by design, not oversight.</strong> Render's free tier has no persistent disk, so SQLite resets on every restart or period of inactivity. This is treated as a known constraint: the app auto-seeds realistic demo data whenever it starts with an empty database, which on Render is every restart, so the live deployment always shows a working, populated state instead of an empty one. The tradeoff is that anything entered live (a new complaint, a bank upload) only persists until the next restart. That is acceptable for a demo review, but a production deployment would need a persistent database.</li>
+<li><strong>The safety check is literal on purpose.</strong> "Fire exit door is squeaky" gets flagged like a real fire. A wrong flag costs a staff member a few seconds, while a missed gas leak could cause real harm, so the check leans toward over-flagging.</li>
+<li><strong>Duplicate-complaint privacy tradeoff.</strong> When two complaints are linked, each resident can see the other's description on their own complaints page. I accepted that because complaints are about shared common-area problems, not private information. The catch is that a resident who puts something private in a complaint could have it shown to a neighbor in the same tower.</li>
+<li><strong>Duplicate prevention for bank rows lives in application code,</strong> not in a database constraint. The unique constraint on <code>BankPayment.reference</code> was removed so duplicate rows can still be stored as an audit trail. The check is a plain match on the reference string, and date and amount are ignored.</li>
+</ul>
+<h3>Next</h3>
+<p><code>decisions.md</code> has no TODO list, so these come from the limitations above and from reading the code.</p>
+<ul>
+<li>Generate a bill each billing cycle and match payments against the open one.</li>
+<li>Move off SQLite on Render's free tier, or add a persistent disk or hosted database.</li>
+<li>Add real database migrations. <code>create_all</code> creates missing tables but doesn't change existing ones, so a new table or column needs a manual step on an existing database.</li>
+<li>Finish the full responsive work that Stage 4 skipped.</li>
+</ul>

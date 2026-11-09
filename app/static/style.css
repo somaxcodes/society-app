@@ -17,49 +17,49 @@
 :host(:not([data-theme=dark])),
 :root:not([data-theme=dark]),
 [data-theme=light] {
-    /* Onyx/Platinum/teal palette. Theme colors only — Onyx (#0A090C) text,
-       Platinum (#F0EDEE) page background, Frosted Blue (#90DDF0) card/
-       surface tint, Stormy Teal (#2C666E) borders, Dark Teal (#07393C)
-       buttons/links with Stormy Teal as their hover state. Safety/urgency/
-       status colors (the badges, banners, success/alert/warning vars
-       below) are a separate system and are NOT part of this palette swap.
-       Contrast checked directly: Onyx/Platinum 17.08:1, white/DarkTeal
-       12.65:1, white/StormyTeal 6.50:1, Onyx/FrostedBlue 13.04:1 — all
-       comfortably clear 4.5:1. */
-    --pico-color: #0a090c;
-    --pico-h1-color: #0a090c;
-    --pico-h2-color: #0a090c;
+    /* White-blue palette. Theme colors only: white page (#FFFFFF) with
+       white cards, navy text (#1A2530, not pure black), strong blue
+       (#0D47A1) for buttons/links, lighter blue (#1976D2) for hover, and
+       very pale blue (#E3F2FD) only for small tinted elements (the stat
+       strip, nav/row hover, filter buttons), never full card backgrounds.
+       Safety/urgency/status colors (badges, banners, success/alert/warning
+       vars below) are a separate system and are not part of this palette.
+       Contrast checked: text/page 15.54:1, white on #0D47A1 8.63:1, white
+       on #1976D2 4.6:1, #0D47A1 on #E3F2FD 7.56:1. */
+    --pico-color: #1a2530;
+    --pico-h1-color: #1a2530;
+    --pico-h2-color: #1a2530;
 
-    /* Platinum page, Frosted Blue surfaces. No dark theme anywhere. */
-    --pico-background-color: #f0edee;
-    --color-surface-secondary: #90ddf0; /* cards, .complaint-row, table headers */
-    --color-border: #2c666e; /* borders and dividers */
-    --color-accent-teal: #bfe7ea; /* table headers, the "Open" badge */
+    /* White page. No dark theme anywhere. */
+    --pico-background-color: #ffffff;
+    --color-surface-secondary: #e3f2fd; /* stat strip, hover tints, filter buttons */
+    --color-border: #90caf9; /* borders and dividers */
+    --color-accent-teal: #bfe7ea; /* the "Open" status badge only */
     --color-accent-teal-text: #0f5257;
 
-    /* Primary: --pico-primary is link text (Dark Teal); the
-       --pico-primary-background/-border variables are what BUTTONS read
-       for their fill (also Dark Teal), and Pico keeps those separate.
-       Stormy Teal is the one shared hover color for both. */
-    --pico-primary: #07393c;
-    --pico-primary-hover: #2c666e;
-    --pico-primary-underline: #07393c;
-    --pico-primary-background: #07393c;
-    --pico-primary-border: #07393c;
-    --pico-primary-hover-background: #2c666e;
-    --pico-primary-hover-border: #2c666e;
-    --pico-primary-focus: rgba(44, 102, 110, 0.5);
+    /* Primary: --pico-primary is link text; the -background/-border
+       variables are what BUTTONS read for their fill, and Pico keeps
+       those separate. Both are the strong blue, with the lighter blue
+       as the one shared hover color. */
+    --pico-primary: #0d47a1;
+    --pico-primary-hover: #1976d2;
+    --pico-primary-underline: #0d47a1;
+    --pico-primary-background: #0d47a1;
+    --pico-primary-border: #0d47a1;
+    --pico-primary-hover-background: #1976d2;
+    --pico-primary-hover-border: #1976d2;
+    --pico-primary-focus: rgba(13, 71, 161, 0.4);
     --pico-primary-inverse: #ffffff;
 
-    /* Secondary buttons: Stormy Teal fill, darkening to Dark Teal on
-       hover — the same two-color family as primary, just the opposite
-       pairing, so primary/secondary still read as visually distinct. */
-    --pico-secondary: #2c666e;
-    --pico-secondary-background: #2c666e;
-    --pico-secondary-border: #2c666e;
-    --pico-secondary-hover-background: #07393c;
-    --pico-secondary-hover-border: #07393c;
-    --pico-secondary-inverse: #ffffff;
+    /* Secondary buttons: pale blue fill, strong-blue border and text, so
+       they read as clearly lower priority than the solid primary button.
+       Hover deepens the pale fill slightly. */
+    --pico-secondary: #0d47a1;
+    --pico-secondary-background: #e3f2fd;
+    --pico-secondary-border: #0d47a1;
+    --pico-secondary-hover-background: #bbdefb;
+    --pico-secondary-hover-border: #0d47a1;
+    --pico-secondary-inverse: #0d47a1;
 
     /* App-specific colors (not Pico variables — used directly by the
        .success button class and the badge/banner rules below). Also
@@ -191,7 +191,7 @@ nav.container ul:last-child a {
 }
 
 nav.container ul:last-child a:hover {
-    color: var(--pico-primary-hover);
+    color: var(--pico-primary);
     background-color: var(--color-surface-secondary);
 }
 
@@ -225,14 +225,25 @@ main.container {
     -webkit-overflow-scrolling: touch;
 }
 
+/* Every table line is the same 1px blue: the outer edge and every line
+   between cells. Pico draws its own gray line under each cell by default
+   (--pico-table-border-color), which is what made some lines blue and
+   others gray; the last row's bottom line is set explicitly so the
+   bottom edge matches the top and sides. */
 table {
     border: 1px solid var(--color-border);
+    border-collapse: collapse;
+    --pico-table-border-color: var(--color-border);
+}
+
+table th,
+table td {
+    border-bottom: 1px solid var(--color-border);
 }
 
 table th {
     background-color: #ffffff;
     color: var(--pico-color);
-    border-bottom: 2px solid var(--color-border);
 }
 
 /* Hover highlight on every table data row (bill summary, review queue,
@@ -375,19 +386,40 @@ article {
     /* A literal color, not var(--pico-color) — Pico's own base button rule
        locally redefines --pico-color to --pico-primary-inverse (white) for
        every <button>, so referencing the same variable here just read that
-       white value back instead of overriding it: white text on a
-       near-white box, invisible. Writing the actual hex sidesteps that
+       white value back instead of overriding it: white text on a white
+       box, invisible. Writing the actual hex sidesteps that
        custom-property redefinition entirely. */
-    background-color: var(--color-surface-secondary);
-    color: #0a090c;
+    background-color: #ffffff;
+    color: #1a2530;
     border: 1px solid var(--color-border);
     min-width: 10rem;
     text-align: left;
-    /* Pico's base <button> rule sets a bold font-weight; the sort <select>
-       next to these (which also carries this class, see staff_complaints.html)
-       is a plain form element with normal weight by default, so without
-       this override the three controls read as visually inconsistent. */
+    /* Pico's base <button> rule sets a bold font-weight; keep these at
+       normal weight so all three filter controls match. */
     font-weight: normal;
+    /* The small down arrow, drawn as a background image so it works on a
+       <button> (a native <select> has its own built in). Right padding
+       keeps long labels from running under it. */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none' stroke='%231a2530' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 6 5 5 5-5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 1rem;
+    padding-right: 2.5rem;
+}
+
+/* Pico's button hover would fill these with the strong blue while the
+   text stays dark. Stay white and just darken the border instead. */
+.dropdown-filter-toggle:hover,
+.dropdown-filter-toggle:focus {
+    background-color: #ffffff;
+    color: #1a2530;
+    border-color: #0d47a1;
+}
+
+/* The small "Sort by" caption above the first filter control. */
+.filter-label {
+    display: block;
+    margin-bottom: 0.25rem;
 }
 
 .dropdown-filter-panel {
@@ -620,6 +652,12 @@ article {
    corresponding "stop hovering" gesture, the highlight/scale can stay
    stuck on whatever was last tapped until something else is touched. */
 @media (hover: hover) {
+    .home-card:hover {
+        transform: scale(1.03);
+        border-color: #0d47a1;
+        box-shadow: 0 0.5rem 1.5rem rgba(13, 71, 161, 0.18);
+    }
+
     /* .complaint-row rests at white now (see .complaint-row above), so
        hovering to the shared surface tint reads as a clear highlight. */
     .complaint-row:hover {
@@ -674,6 +712,7 @@ article {
 }
 
 .home-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     background-color: #ffffff;
     margin: 0;
     display: flex;
@@ -704,8 +743,11 @@ article {
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* "backwards" (not "both"): it hides the element during any delay, but
+   once the animation ends it lets go of the transform. With "both", the
+   final transform stays pinned and a hover scale could never apply. */
 .fade-up {
-    animation: fade-up 0.6s ease-out both;
+    animation: fade-up 0.6s ease-out backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {

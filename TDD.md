@@ -118,12 +118,12 @@ This lives in `app/classification.py`, `app/safety_check.py` and `app/main.py`. 
 
 **What the pages show**
 - A red banner for `is_safety_flagged`.
-- An amber banner when urgency is High but no safety keyword matched, meaning only the AI rated it dangerous.
+- An amber "High priority" banner when urgency is High but no safety keyword matched. That means the AI rated it High, either directly or through a linked duplicate, without a keyword confirming it.
 
 ## 4. UI and design decisions
 
 - **Separate staff and resident views.** Each role gets its own navigation and pages. Residents see only their own flat's bill and complaints, and staff see every flat plus the bank tools. `require_role()` returns 401 if you aren't logged in and 403 if you have the wrong role. The brief only defined these two roles, so there is no committee role. The "committee dashboard" is simply the staff dashboard.
-- **Color-coded badges and banners.** Urgency and status appear as badges with the text always visible, so color is never the only signal. Safety gets its own red banner instead of reusing "High", because the two come from different places: the banner from the keyword check, urgency from the AI or the escalation rules. The amber banner lets staff tell "a keyword confirmed danger" from "only the AI thinks it's dangerous".
+- **Color-coded badges and banners.** Urgency and status appear as badges with the text always visible, so color is never the only signal. Safety gets its own red banner instead of reusing "High", because the two come from different places: the banner from the keyword check, urgency from the AI or the escalation rules. The amber banner lets staff tell "a keyword confirmed danger" from "only the AI rated it High".
 - **Pico.css, not a custom framework.** It is readable and responsive out of the box, needs no build step, and keeps the markup as plain semantic HTML. My own CSS on top handles the palette, cards, badges and hover states. `docs/design-brief.md` asked for large readable text, good contrast, big buttons and clear labels, since some users may be elderly or not at ease with technology. Pico made those basics easier to get right than starting from nothing.
 - **Plain error messages.** The login page shows the same error for an unknown email and a wrong password, so it can't be used to find out which emails have accounts.
 
@@ -131,7 +131,7 @@ This lives in `app/classification.py`, `app/safety_check.py` and `app/main.py`. 
 
 ### Cut or skipped
 
-- **Stage 4 (responsive breakpoints) was skipped.** This is a server-rendered internal tool, and tuning breakpoints properly would have cost hours for little benefit, so it went down as a known limitation. A small mobile pass came later (one `max-width: 480px` block). I reviewed it from the CSS only and haven't checked it on a real device.
+- **Stage 4 (responsive breakpoints) was skipped.** This is a server-rendered internal tool, and tuning breakpoints properly would have cost hours for little benefit, so it went down as a known limitation. A small mobile pass came later (one max-width: 480px block). I have since checked it on an actual phone and it works fine.
 - **Stage 5 (a separate regression pass) was folded into pytest.** Tests covering login and roles, bill payment, complaint submission, duplicate linking, urgency escalation and bank CSV matching seemed a more honest check than clicking through pages. The AI calls are replaced with fakes in the tests. `test_urgency_manual.py` calls the real AI and is meant to be read by a person, not asserted.
 - **OTP login was not built.** The brief asked for it, but email and password with hashed passwords and a signed cookie is simpler and secure enough for a demo.
 - **No committee role.** See section 4.
@@ -139,7 +139,7 @@ This lives in `app/classification.py`, `app/safety_check.py` and `app/main.py`. 
 ### Known limitations
 
 - **One static bill per flat.** The brief's sample bank statement covers several months, but the app creates one `Bill` per flat at seed time and has no monthly billing cycle. That is why the Review Queue shows so many "possible overpayment" flags: any payment past the single fixed amount looks like an overpayment. A real system would create a bill each cycle, match payments against the open one, and credit forward or flag leftovers.
-- **Free-tier storage resets by design, not oversight.** Render's free tier has no persistent disk, so SQLite resets on every restart or period of inactivity. This is treated as a known constraint: the app auto-seeds realistic demo data on every startup, so the live deployment always shows a working, populated state instead of an empty one. The tradeoff is that anything entered live (a new complaint, a bank upload) only persists until the next restart. That is acceptable for a demo review, but a production deployment would need a persistent database.
+- **Free-tier storage resets by design, not oversight.** Render's free tier has no persistent disk, so SQLite resets on every restart or period of inactivity. This is treated as a known constraint: the app auto-seeds realistic demo data whenever it starts with an empty database, which on Render is every restart, so the live deployment always shows a working, populated state instead of an empty one. The tradeoff is that anything entered live (a new complaint, a bank upload) only persists until the next restart. That is acceptable for a demo review, but a production deployment would need a persistent database.
 - **The safety check is literal on purpose.** "Fire exit door is squeaky" gets flagged like a real fire. A wrong flag costs a staff member a few seconds, while a missed gas leak could cause real harm, so the check leans toward over-flagging.
 - **Duplicate-complaint privacy tradeoff.** When two complaints are linked, each resident can see the other's description on their own complaints page. I accepted that because complaints are about shared common-area problems, not private information. The catch is that a resident who puts something private in a complaint could have it shown to a neighbor in the same tower.
 - **Duplicate prevention for bank rows lives in application code,** not in a database constraint. The unique constraint on `BankPayment.reference` was removed so duplicate rows can still be stored as an audit trail. The check is a plain match on the reference string, and date and amount are ignored.
@@ -151,4 +151,4 @@ This lives in `app/classification.py`, `app/safety_check.py` and `app/main.py`. 
 - Generate a bill each billing cycle and match payments against the open one.
 - Move off SQLite on Render's free tier, or add a persistent disk or hosted database.
 - Add real database migrations. `create_all` creates missing tables but doesn't change existing ones, so a new table or column needs a manual step on an existing database.
-- Check the layout on real phones, and finish the responsive work that Stage 4 skipped.
+- Finish the full responsive work that Stage 4 skipped.

@@ -16,11 +16,20 @@
 
     <form method="get" action="/staff/complaints" class="filter-bar">
         <div>
-            <label for="sort">Sort by</label>
-            <select id="sort" name="sort" class="dropdown-filter-toggle">
-                <option value="urgency" {% if sort == 'urgency' %}selected{% endif %}>Urgency (High first)</option>
-                <option value="latest" {% if sort == 'latest' %}selected{% endif %}>Latest first</option>
-            </select>
+            <span class="filter-label">Sort by</span>
+            <div class="dropdown-filter">
+                <button type="button" class="dropdown-filter-toggle" data-label="Sort by" aria-expanded="false">Urgency (High first)</button>
+                <div class="dropdown-filter-panel" hidden>
+                    <label>
+                        <input type="radio" name="sort" value="urgency" {% if sort != 'latest' %}checked{% endif %}>
+                        Urgency (High first)
+                    </label>
+                    <label>
+                        <input type="radio" name="sort" value="latest" {% if sort == 'latest' %}checked{% endif %}>
+                        Latest first
+                    </label>
+                </div>
+            </div>
         </div>
 
         <div class="dropdown-filter">
@@ -62,7 +71,7 @@
         </p>
         {% elif complaint.urgency == 'High' %}
         <p class="ai-risk-banner">
-            ⚠ AI flagged this as potentially high-risk. No safety keyword matched.
+            ⚠ High priority: this looks serious and needs a quick check.
         </p>
         {% endif %}
 
