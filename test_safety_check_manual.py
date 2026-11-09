@@ -1,15 +1,19 @@
-# A plain, read-the-output-yourself script for trying out check_safety_flag()
-# against a set of example complaints. Not a pytest test — just run it directly
-# (note: no ".py" on the module name, or Python looks for a package, not a file):
-#   python -m test_safety_check_manual
+"""
+A plain, read-the-output-yourself script for trying out check_safety_flag()
+against a set of example complaints. Not a pytest test — just run it directly
+(note: no ".py" on the module name, or Python looks for a package, not a file):
+  python -m test_safety_check_manual
+"""
 
 from app.safety_check import check_safety_flag
 
-# (complaint text, expected result) — covers: a standalone word with a
-# misspelling, an ordinary complaint with no danger words, both pair
-# concepts (lift+stuck, gas+leak), a word only found once spaces/punctuation
-# are stripped (including deliberately/accidentally broken-up words meant
-# to evade a naive keyword match), and a plain negative case.
+"""
+(complaint text, expected result) — covers: a standalone word with a
+misspelling, an ordinary complaint with no danger words, both pair
+concepts (lift+stuck, gas+leak), a word only found once spaces/punctuation
+are stripped (including deliberately/accidentally broken-up words meant
+to evade a naive keyword match), and a plain negative case.
+"""
 cases = [
     ("There is a fyre in the parking lot", True),
     ("My kitchen sink is leaking", False),

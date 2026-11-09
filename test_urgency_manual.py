@@ -1,7 +1,9 @@
-# Manual check of classify_complaint()'s urgency against situations where the
-# right answer is clear. Calls the real Groq API, so output can vary slightly
-# between runs; read the MISMATCH lines, they're the ones worth a look.
-#   python -m test_urgency_manual
+"""
+Manual check of classify_complaint()'s urgency against situations where the
+right answer is clear. Calls the real Groq API, so output can vary slightly
+between runs; read the MISMATCH lines, they're the ones worth a look.
+  python -m test_urgency_manual
+"""
 
 from app.classification import classify_complaint
 
