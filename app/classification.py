@@ -20,17 +20,34 @@ High: there is immediate danger to people or property, or something safety-criti
 Medium: it seriously disrupts daily life or will get worse if ignored, but nobody is in danger right now. Examples: a lift out of service, a pipe or tap leaking heavily inside a flat, no water supply, a broken light in a common stairwell or corridor, a gate or lock not working, repeated loud noise.
 Low: minor, cosmetic or inconvenient and can safely wait several days. Examples: a dripping or slowly leaking tap, peeling paint, a small crack that is not growing, a flickering bulb in a flat, occasional noise, a question, or anything that is not really a complaint."""
 
-# llama-3.1-8b-instant (the model originally asked for) was retired by Groq;
-# openai/gpt-oss-20b is Groq's own recommended replacement and is their
-# fastest small production text model, so it's the closest equivalent.
+"""
+llama-3.1-8b-instant (the model originally asked for) was retired by Groq;
+openai/gpt-oss-20b is Groq's own recommended replacement and is their
+fastest small production text model, so it's the closest equivalent.
+"""
 MODEL = "openai/gpt-oss-20b"
 
+"""
+The only values the database accepts (see the CheckConstraints on Complaint
+in app/models.py) and the only ones SYSTEM_PROMPT asks Groq for. Whatever Groq
+actually sends back is checked against these before it is used, because
+nothing forces an AI to follow instructions: an unexpected value like
+"banana" would otherwise reach the database and crash the save.
+"""
+VALID_CATEGORIES = [
+    "plumbing", "electrical", "lift", "security", "cleaning",
+    "safety", "structural", "parking", "noise", "other",
+]
+VALID_URGENCIES = ["Low", "Medium", "High"]
 
-# Classifies a complaint via the Groq API, but falls back to category="other"/
-# urgency="Medium" on any failure (bad key, timeout, bad JSON, retired model,
-# etc.) so a down or misbehaving API never blocks a complaint from being
-# filed — and the safety override always has the final say on urgency,
-# regardless of what Groq or the fallback decided.
+
+"""
+Classifies a complaint via the Groq API, but falls back to category="other"/
+urgency="Medium" on any failure (bad key, timeout, bad JSON, retired model,
+etc.) so a down or misbehaving API never blocks a complaint from being
+filed — and the safety override always has the final say on urgency,
+regardless of what Groq or the fallback decided.
+"""
 def classify_complaint(text: str) -> dict:
     is_safety_flagged = check_safety_flag(text)
 
@@ -51,6 +68,17 @@ def classify_complaint(text: str) -> dict:
         category = "other"
         urgency = "Medium"
 
+    """
+    Well formed JSON can still carry values we don't allow. Each field falls
+    back on its own, to the same defaults as above, so one odd value does not
+    throw away the other one (e.g. a valid "High" urgency is kept even if the
+    category is nonsense).
+    """
+    if category not in VALID_CATEGORIES:
+        category = "other"
+    if urgency not in VALID_URGENCIES:
+        urgency = "Medium"
+
     if is_safety_flagged:
         urgency = "High"
 
@@ -68,18 +96,22 @@ DUPLICATE_SYSTEM_PROMPT = (
 )
 
 
-# Finds the oldest still-open complaint (if any) that's probably the same
-# underlying issue as the one being described in `text`: first a cheap structural
-# pre-filter (same category, same tower, still open, within the last 7 days)
-# narrows candidates, then one Groq call per candidate (oldest first) confirms
-# it's genuinely the same issue rather than just a same-category coincidence.
-# Defaults to None on any failure (API error, timeout, unexpected response) so
-# a broken duplicate check never blocks a complaint from being filed.
+"""
+Finds the oldest still-open complaint (if any) that's probably the same
+underlying issue as the one being described in `text`: first a cheap structural
+pre-filter (same category, same tower, still open, within the last 7 days)
+narrows candidates, then one Groq call per candidate (oldest first) confirms
+it's genuinely the same issue rather than just a same-category coincidence.
+Defaults to None on any failure (API error, timeout, unexpected response) so
+a broken duplicate check never blocks a complaint from being filed.
+"""
 def find_duplicate(db_session, flat, category, text, exclude_id=None):
     try:
-        # "T07-1203" -> "T07" — complaints from the same tower are the ones
-        # worth comparing; a lift outage in a different tower isn't the same
-        # issue just because the category matches.
+        """
+        "T07-1203" -> "T07" — complaints from the same tower are the ones
+        worth comparing; a lift outage in a different tower isn't the same
+        issue just because the category matches.
+        """
         tower = flat.flat_number.split("-")[0]
 
         cutoff = datetime.utcnow() - timedelta(days=7)

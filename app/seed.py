@@ -1,10 +1,12 @@
-# This script puts some starter data into the database so we have
-# something real to test with, instead of an empty database.
-#
-# run_seed(db) does the actual work and is also called automatically by
-# app/main.py on startup if the database is empty (see Base.metadata there).
-# You can still run it by hand too:
-#   python -m app.seed
+"""
+This script puts some starter data into the database so we have
+something real to test with, instead of an empty database.
+
+run_seed(db) does the actual work and is also called automatically by
+app/main.py on startup if the database is empty (see Base.metadata there).
+You can still run it by hand too:
+  python -m app.seed
+"""
 
 from datetime import date, timedelta
 
@@ -14,9 +16,11 @@ from app.models import Bill, Flat, User
 
 
 def run_seed(db):
-    # Create one staff (help-desk) user. The staff member's real password is
-    # "staff123" — we never store that as-is, we run it through hash_password()
-    # first and store only the scrambled result.
+    """
+    Create one staff (help-desk) user. The staff member's real password is
+    "staff123" — we never store that as-is, we run it through hash_password()
+    first and store only the scrambled result.
+    """
     staff = User(
         email="staff@society.com",
         hashed_password=hash_password("staff123"),
@@ -24,11 +28,13 @@ def run_seed(db):
     )
     db.add(staff)  # db.add() stages the row to be saved (doesn't save it yet)
 
-    # The 3 sample flats from the problem statement, written as a list of
-    # dictionaries so we can loop over them below instead of repeating code
-    # 3 times. "amount_paid" and "due_date" are different for each flat because
-    # the sample data describes 3 different payment situations (fully paid,
-    # overdue, and partially paid).
+    """
+    The 3 sample flats from the problem statement, written as a list of
+    dictionaries so we can loop over them below instead of repeating code
+    3 times. "amount_paid" and "due_date" are different for each flat because
+    the sample data describes 3 different payment situations (fully paid,
+    overdue, and partially paid).
+    """
     flats_data = [
         {
             "flat_number": "T07-1203",
@@ -73,16 +79,20 @@ def run_seed(db):
         )
         db.add(flat)
 
-        # db.flush() pushes this flat to the database RIGHT NOW (but doesn't
-        # fully commit/finish yet). We need to do this because the database
-        # assigns flat.id automatically, and we need that id below to tell the
-        # Bill which flat it belongs to. Without flush(), flat.id would still be
-        # empty (None) at this point.
+        """
+        db.flush() pushes this flat to the database RIGHT NOW (but doesn't
+        fully commit/finish yet). We need to do this because the database
+        assigns flat.id automatically, and we need that id below to tell the
+        Bill which flat it belongs to. Without flush(), flat.id would still be
+        empty (None) at this point.
+        """
         db.flush()
 
-        # Step 2: create the Bill row for this flat.
-        # amount_due is calculated, not hardcoded, using the rate given in the
-        # problem statement: ₹6.50 per sqft per month.
+        """
+        Step 2: create the Bill row for this flat.
+        amount_due is calculated, not hardcoded, using the rate given in the
+        problem statement: ₹6.50 per sqft per month.
+        """
         bill = Bill(
             flat_id=flat.id,  # links this bill to the flat we just created
             amount_due=data["area_sqft"] * 6.5,
