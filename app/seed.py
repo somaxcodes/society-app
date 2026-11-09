@@ -8,11 +8,12 @@ You can still run it by hand too:
   python -m app.seed
 """
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from app.auth import hash_password
 from app.database import SessionLocal
-from app.models import Bill, Flat, User
+from app.models import Bill, Complaint, Flat, User
+from app.safety_check import check_safety_flag
 
 
 def run_seed(db):
@@ -63,9 +64,50 @@ def run_seed(db):
             "due_date": date.today() - timedelta(days=18),  # 18 days overdue, partially paid
             "resident_email": "aamir@test.com",
         },
+        # 4 more flats added for the bank-upload demo CSV: all fully unpaid
+        # (amount_paid=0), with a believable mix of overdue days (barely due,
+        # to genuinely late) so the staff dashboard's overdue-flats view has
+        # some real variety instead of just the 3 original flats.
+        {
+            "flat_number": "T18-1104",
+            "owner_name": "Vikram Singh",
+            "area_sqft": 1400,
+            "upi_id": "vikram.singh@upi",
+            "amount_paid": 0,
+            "due_date": date.today() - timedelta(days=5),  # 5 days overdue, barely late
+            "resident_email": "vikram@test.com",
+        },
+        {
+            "flat_number": "T03-0501",
+            "owner_name": "Priya Nair",
+            "area_sqft": 850,
+            "upi_id": "priya.nair@upi",
+            "amount_paid": 0,
+            "due_date": date.today() - timedelta(days=8),  # 8 days overdue, recently due
+            "resident_email": "priya@test.com",
+        },
+        {
+            "flat_number": "T15-0902",
+            "owner_name": "Rajesh Verma",
+            "area_sqft": 1200,
+            "upi_id": "rajesh.verma@upi",
+            "amount_paid": 0,
+            "due_date": date.today() - timedelta(days=32),  # 32 days overdue
+            "resident_email": "rajesh@test.com",
+        },
+        {
+            "flat_number": "T09-0210",
+            "owner_name": "Fatima Ali",
+            "area_sqft": 1050,
+            "upi_id": "fatima.ali@upi",
+            "amount_paid": 0,
+            "due_date": date.today() - timedelta(days=60),  # 60 days overdue, genuinely late
+            "resident_email": "fatima@test.com",
+        },
     ]
 
     inserted_count = 0  # just a counter so we can print how many we added at the end
+    flats_by_number = {}  # filled in below, used by the sample complaints further down
 
     # Loop through each flat's data one at a time and create 2 database rows
     # for it: one Flat row, and one Bill row linked to that flat.
@@ -111,10 +153,105 @@ def run_seed(db):
         )
         db.add(resident)
 
+        flats_by_number[data["flat_number"]] = flat
         inserted_count += 1
 
-    # Now actually save everything we staged above (1 staff user + 3 flats +
-    # 3 bills) permanently into society.db.
+    """
+    Sample complaints, so a freshly seeded database (e.g. a fresh Render
+    deploy) shows a populated dashboard and complaints list instead of an
+    empty one. Category and urgency are hardcoded, plausible values here,
+    NOT produced by calling classify_complaint() -- that function hits the
+    live Groq API, and seeding runs on every app startup against an empty
+    database (including every Render cold start), so depending on a live
+    API call there would be slow and unreliable. is_safety_flagged is the
+    one exception: check_safety_flag() is pure keyword matching, no API
+    call, so it's called directly below instead of being hardcoded, the
+    same way the real /complaints/new route uses it.
+    """
+    complaints_data = [
+        {
+            "flat_number": "T07-1203",
+            "description": "Kitchen tap has been leaking slowly for a few days.",
+            "category": "plumbing",
+            "urgency": "Medium",
+            "status": "Open",
+        },
+        {
+            "flat_number": "T21-1601",
+            "description": "Upstairs neighbor's renovation work is noisy during odd hours.",
+            "category": "noise",
+            "urgency": "Low",
+            "status": "In Progress",
+        },
+        # Duplicate pair: both from the same flat/tower, same category,
+        # submitted close together, both Open -- the second one's
+        # linked_to_id points at the first (the anchor), same convention the
+        # real escalate_duplicate_cluster_urgency() in app/main.py uses
+        # (linking always targets the older complaint).
+        {
+            "flat_number": "T12-0408",
+            "description": "The lift in our tower keeps stopping between floors unpredictably.",
+            "category": "lift",
+            "urgency": "Medium",
+            "status": "Open",
+            "created_at": datetime.utcnow() - timedelta(hours=3),
+        },
+        {
+            "flat_number": "T12-0408",
+            "description": "Lift is behaving the same way again, randomly halting between floors.",
+            "category": "lift",
+            "urgency": "Medium",
+            "status": "Open",
+            "created_at": datetime.utcnow() - timedelta(hours=2),
+            "link_to_previous": True,
+        },
+        # Safety-flagged demo: wording chosen so check_safety_flag() really
+        # returns True (the gas+smell pair), so the red safety banner is
+        # visible on page load without filing a new complaint.
+        {
+            "flat_number": "T15-0902",
+            "description": "I smell gas near the meter room on our floor.",
+            "category": "safety",
+            "urgency": "High",
+            "status": "Open",
+        },
+        # High urgency but NOT safety-flagged: demonstrates the amber "AI
+        # flagged this as potentially high-risk, no safety keyword matched"
+        # banner. Wording deliberately avoids every check_safety_flag()
+        # keyword.
+        {
+            "flat_number": "T09-0210",
+            "description": (
+                "The main electrical panel for our wing seems to be malfunctioning "
+                "intermittently, lights flicker across multiple flats."
+            ),
+            "category": "electrical",
+            "urgency": "High",
+            "status": "Open",
+        },
+    ]
+
+    previous_complaint = None
+    for data in complaints_data:
+        complaint = Complaint(
+            flat_id=flats_by_number[data["flat_number"]].id,
+            description=data["description"],
+            category=data["category"],
+            urgency=data["urgency"],
+            status=data["status"],
+            is_safety_flagged=check_safety_flag(data["description"]),
+        )
+        if "created_at" in data:
+            complaint.created_at = data["created_at"]
+        if data.get("link_to_previous"):
+            complaint.linked_to_id = previous_complaint.id
+
+        db.add(complaint)
+        db.flush()  # assigns complaint.id, needed if the next one links to it
+        previous_complaint = complaint
+
+    # Now actually save everything we staged above (1 staff user + 7 flats +
+    # 7 bills + 6 complaints) permanently into society.db.
     db.commit()
 
     print(f"Inserted {inserted_count} flats with bills and resident accounts, plus 1 staff user.")
