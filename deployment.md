@@ -104,6 +104,7 @@ Staff and resident accounts are created by the seed script.
 |---|---|---|
 | Staff | `staff@society.com` | `staff123` |
 | Resident (flat T07-1203) | `neeraj@test.com` | `resident123` |
+| Resident (flat T12-0408) | `swati@test.com` | `resident123` |
 
 Log in from the homepage with "Resident Login" or "Staff Login".
 
