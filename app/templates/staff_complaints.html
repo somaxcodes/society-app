@@ -60,6 +60,10 @@
         <p class="safety-banner">
             ⚠ SAFETY FLAGGED: this complaint has been flagged for immediate attention
         </p>
+        {% elif complaint.urgency == 'High' %}
+        <p class="ai-risk-banner">
+            ⚠ AI flagged this as potentially high-risk. No safety keyword matched.
+        </p>
         {% endif %}
 
         <p>

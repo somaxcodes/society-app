@@ -67,6 +67,8 @@
     --color-success-hover: #084a24;
     --color-alert: #ac1b29;
     --color-alert-hover: #8a1620;
+    --color-warning: #92400e; /* 7.09:1 vs white text, same approach as alert */
+    --color-warning-hover: #78350c;
 
     --pico-border-radius: 0.375rem;
 
@@ -475,6 +477,14 @@ article {
 
 .safety-banner {
     background-color: var(--color-alert);
+    color: #ffffff;
+    padding: 0.5em;
+    font-weight: 700;
+    border-radius: var(--pico-border-radius);
+}
+
+.ai-risk-banner {
+    background-color: var(--color-warning);
     color: #ffffff;
     padding: 0.5em;
     font-weight: 700;
