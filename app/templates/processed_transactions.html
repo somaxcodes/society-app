@@ -11,18 +11,20 @@
         on the <a href="/review-queue">Review Queue</a> instead.
     </p>
 
-    <div class="stat-row">
-        <div>
-            <p class="stat-value">{{ total }}</p>
-            <p class="stat-label">Total processed</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ counts.matched }}</p>
-            <p class="stat-label">Matched</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ counts.duplicate }}</p>
-            <p class="stat-label">Duplicate</p>
+    <div class="stat-strip">
+        <div class="stat-row">
+            <div>
+                <p class="stat-value">{{ total }}</p>
+                <p class="stat-label">Total processed</p>
+            </div>
+            <div>
+                <p class="stat-value">{{ counts.matched }}</p>
+                <p class="stat-label">Matched</p>
+            </div>
+            <div>
+                <p class="stat-value">{{ counts.duplicate }}</p>
+                <p class="stat-label">Duplicate</p>
+            </div>
         </div>
     </div>
 

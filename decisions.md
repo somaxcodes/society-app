@@ -87,3 +87,12 @@ each billing cycle, and payments would match against whichever bill
 is currently open, with any leftover flagged or credited forward
 instead of just looking like overpayment against a single static
 number.
+
+## 2026-11-09 (mobile pass)
+
+Added a small mobile-responsive pass (CSS only, inside the existing
+max-width: 480px block) after the Stage 4 skip decision. It makes the
+header scroll away instead of staying sticky (the staff nav wraps to
+several lines), wraps long unbroken text, makes the filter controls
+fill the row, and shrinks the large stat numbers. Reviewed from the
+CSS, not verified on a real device.

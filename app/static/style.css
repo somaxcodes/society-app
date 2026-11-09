@@ -17,44 +17,48 @@
 :host(:not([data-theme=dark])),
 :root:not([data-theme=dark]),
 [data-theme=light] {
-    /* Blue palette on a white page. Accent/structural colors only:
-       #E3F2FD cards and table headers, #90CAF9 borders, #2196F3 button
-       fill, #0D47A1 hover and link text. Body text stays deep charcoal.
-       Contrast note: white on #2196F3 is only 3.12:1 (below the 4.5:1
-       text standard), so plain link text uses #0D47A1 (8.63:1) instead
-       and #2196F3 is kept to bold button fills. */
-    --pico-color: #1a2530;
-    --pico-h1-color: #1a2530;
-    --pico-h2-color: #1a2530;
+    /* Onyx/Platinum/teal palette. Theme colors only — Onyx (#0A090C) text,
+       Platinum (#F0EDEE) page background, Frosted Blue (#90DDF0) card/
+       surface tint, Stormy Teal (#2C666E) borders, Dark Teal (#07393C)
+       buttons/links with Stormy Teal as their hover state. Safety/urgency/
+       status colors (the badges, banners, success/alert/warning vars
+       below) are a separate system and are NOT part of this palette swap.
+       Contrast checked directly: Onyx/Platinum 17.08:1, white/DarkTeal
+       12.65:1, white/StormyTeal 6.50:1, Onyx/FrostedBlue 13.04:1 — all
+       comfortably clear 4.5:1. */
+    --pico-color: #0a090c;
+    --pico-h1-color: #0a090c;
+    --pico-h2-color: #0a090c;
 
-    /* White page, light-blue surfaces. No dark theme anywhere. */
-    --pico-background-color: #ffffff;
-    --color-surface-secondary: #e3f2fd; /* cards, .complaint-row, table headers */
-    --color-border: #90caf9; /* borders and dividers */
+    /* Platinum page, Frosted Blue surfaces. No dark theme anywhere. */
+    --pico-background-color: #f0edee;
+    --color-surface-secondary: #90ddf0; /* cards, .complaint-row, table headers */
+    --color-border: #2c666e; /* borders and dividers */
     --color-accent-teal: #bfe7ea; /* table headers, the "Open" badge */
     --color-accent-teal-text: #0f5257;
 
-    /* Primary: --pico-primary is link text (dark blue); the
+    /* Primary: --pico-primary is link text (Dark Teal); the
        --pico-primary-background/-border variables are what BUTTONS read
-       for their fill (medium blue), and Pico keeps those separate. */
-    --pico-primary: #0d47a1;
-    --pico-primary-hover: #0d47a1;
-    --pico-primary-underline: #0d47a1;
-    --pico-primary-background: #2196f3;
-    --pico-primary-border: #2196f3;
-    --pico-primary-hover-background: #0d47a1;
-    --pico-primary-hover-border: #0d47a1;
-    --pico-primary-focus: rgba(33, 150, 243, 0.5);
+       for their fill (also Dark Teal), and Pico keeps those separate.
+       Stormy Teal is the one shared hover color for both. */
+    --pico-primary: #07393c;
+    --pico-primary-hover: #2c666e;
+    --pico-primary-underline: #07393c;
+    --pico-primary-background: #07393c;
+    --pico-primary-border: #07393c;
+    --pico-primary-hover-background: #2c666e;
+    --pico-primary-hover-border: #2c666e;
+    --pico-primary-focus: rgba(44, 102, 110, 0.5);
     --pico-primary-inverse: #ffffff;
 
-    /* Secondary buttons: deep teal (the reference palette's pale teal,
-       #BFE7EA, only works as an accent/surface tint — it's nowhere near
-       dark enough to hold white button text). */
-    --pico-secondary: #2f7a80;
-    --pico-secondary-background: #2f7a80;
-    --pico-secondary-border: #2f7a80;
-    --pico-secondary-hover-background: #245f64;
-    --pico-secondary-hover-border: #245f64;
+    /* Secondary buttons: Stormy Teal fill, darkening to Dark Teal on
+       hover — the same two-color family as primary, just the opposite
+       pairing, so primary/secondary still read as visually distinct. */
+    --pico-secondary: #2c666e;
+    --pico-secondary-background: #2c666e;
+    --pico-secondary-border: #2c666e;
+    --pico-secondary-hover-background: #07393c;
+    --pico-secondary-hover-border: #07393c;
     --pico-secondary-inverse: #ffffff;
 
     /* App-specific colors (not Pico variables — used directly by the
@@ -145,7 +149,7 @@ button[type="submit"], button {
     position: sticky;
     top: 0;
     z-index: 10;
-    background-color: #ffffff;
+    background-color: var(--pico-background-color);
     border-bottom: 1px solid var(--color-border);
 }
 
@@ -187,8 +191,8 @@ nav.container ul:last-child a {
 }
 
 nav.container ul:last-child a:hover {
-    color: var(--pico-primary);
-    background-color: #e3f2fd;
+    color: var(--pico-primary-hover);
+    background-color: var(--color-surface-secondary);
 }
 
 /* The brand link shouldn't look like a nav action. Targeted by class, not
@@ -226,8 +230,19 @@ table {
 }
 
 table th {
-    background-color: var(--color-surface-secondary);
+    background-color: #ffffff;
     color: var(--pico-color);
+    border-bottom: 2px solid var(--color-border);
+}
+
+/* Hover highlight on every table data row (bill summary, review queue,
+   processed transactions, staff dashboard's overdue-flats list...) — see
+   the @media (hover: hover) block further down for why this is scoped to
+   real-hover devices only. transition lives here (not just inside the
+   media block) so it's inert with no hover support, instead of doing
+   nothing useful. */
+table tr {
+    transition: background-color 0.15s ease;
 }
 
 /* Cards/sections used across the staff and resident pages — a subtle
@@ -242,8 +257,25 @@ article {
    deliberately used on the staff pages specifically, where staff need to
    scan several sections of numbers/rows quickly; the resident pages stay
    plainer on purpose. Rem-based padding/margin, same as the rest of this
-   file, so it scales with the user's font-size setting. */
+   file, so it scales with the user's font-size setting.
+   White, not the accent tint — a solid accent fill on every single card on
+   every page read as loud/cheap rather than clean. The accent color is
+   reserved for borders, buttons, nav highlights, and the stat-strip below
+   (.stat-strip), not for panel backgrounds in general. */
 .card {
+    background-color: #ffffff;
+    border: 1px solid var(--color-border);
+    border-radius: var(--pico-border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+/* The one deliberate exception: the row of key numbers at the top of a
+   dashboard-style page (staff dashboard, upload results, processed
+   transactions) keeps the accent tint, so it still reads as the page's
+   single visual focal point instead of blending in with the plain white
+   cards below it. */
+.stat-strip {
     background-color: var(--color-surface-secondary);
     border: 1px solid var(--color-border);
     border-radius: var(--pico-border-radius);
@@ -347,10 +379,15 @@ article {
        near-white box, invisible. Writing the actual hex sidesteps that
        custom-property redefinition entirely. */
     background-color: var(--color-surface-secondary);
-    color: #1a2530;
+    color: #0a090c;
     border: 1px solid var(--color-border);
     min-width: 10rem;
     text-align: left;
+    /* Pico's base <button> rule sets a bold font-weight; the sort <select>
+       next to these (which also carries this class, see staff_complaints.html)
+       is a plain form element with normal weight by default, so without
+       this override the three controls read as visually inconsistent. */
+    font-weight: normal;
 }
 
 .dropdown-filter-panel {
@@ -361,7 +398,7 @@ article {
     min-width: 14rem;
     max-height: 16rem;
     overflow-y: auto;
-    background-color: var(--color-surface-secondary);
+    background-color: #ffffff;
     border: 1px solid var(--color-border);
     border-radius: var(--pico-border-radius);
     padding: 0.75rem;
@@ -388,7 +425,7 @@ article {
    on a long filtered list, a wall of undifferentiated text was hard to
    scan row to row. */
 .complaint-row {
-    background-color: var(--color-surface-secondary);
+    background-color: #ffffff;
     border: 1px solid var(--color-border);
     border-radius: var(--pico-border-radius);
     padding: 1rem;
@@ -421,6 +458,15 @@ article {
    true top instead, leaving room for the nav. */
 [id^="complaint-"] {
     scroll-margin-top: var(--nav-height);
+    transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+/* A plain list row (so far just the resident Bills page's "My Open
+   Complaints" items) that should get the same hover lift as a full
+   complaint card, without the padding/border/background a card has. */
+.hoverable-row {
+    transition: background-color 0.15s ease, transform 0.15s ease;
+    border-radius: var(--pico-border-radius);
 }
 
 /* Briefly flashes a soft yellow background on whatever complaint row/card
@@ -438,7 +484,7 @@ article {
 
 @keyframes highlight-flash-card {
     from { background-color: #fef9c3; }
-    to { background-color: var(--color-surface-secondary); }
+    to { background-color: #ffffff; }
 }
 
 .highlight-flash {
@@ -470,6 +516,64 @@ article {
 
     .dropdown-filter-panel label {
         padding: 0.2rem 0;
+    }
+
+    /* The staff nav has 6 links, which wrap to several lines on a phone.
+       A sticky header that tall would cover a big slice of the screen
+       while scrolling, so it scrolls away with the page here instead. */
+    .site-header {
+        position: static;
+    }
+
+    /* Long unbroken strings (UPI IDs, references, pasted text) wrap
+       instead of pushing the page wider than the screen. */
+    main.container {
+        overflow-wrap: anywhere;
+    }
+
+    /* Filter controls fill the row, and the popover matches their width
+       instead of running off the right edge of the screen. */
+    .filter-bar > div,
+    .dropdown-filter {
+        width: 100%;
+    }
+
+    .dropdown-filter-toggle,
+    .filter-bar select {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .dropdown-filter-panel {
+        min-width: 0;
+        right: 0;
+    }
+
+    /* Big numbers (a 7-digit rupee total) stay inside their box. */
+    .stat-value {
+        font-size: 1.75rem;
+    }
+
+    .stat-row {
+        gap: 1rem;
+    }
+
+    .stat-row > div {
+        min-width: 7rem;
+    }
+
+    .home-hero h1 {
+        font-size: 2rem;
+    }
+
+    .home-hero {
+        padding-top: 1rem;
+    }
+
+    /* Card buttons span the card so they are easy to tap. */
+    .home-card [role="button"] {
+        width: 100%;
+        text-align: center;
     }
 }
 
@@ -505,4 +609,107 @@ article {
     border: 1px solid #b7dfc3;
     border-radius: var(--pico-border-radius);
     font-weight: 600;
+}
+
+/* Hover highlight for complaint cards/rows, bill rows, and similar list
+   items, so the app feels responsive to interaction rather than static.
+   Wrapped in (hover: hover) — that media feature is only true for a
+   pointer that can actually hover (a mouse/trackpad); a touchscreen
+   reports (hover: none), so these rules never apply there. Without this
+   guard, a tap on a touch device fires :hover too, and since there's no
+   corresponding "stop hovering" gesture, the highlight/scale can stay
+   stuck on whatever was last tapped until something else is touched. */
+@media (hover: hover) {
+    /* .complaint-row rests at white now (see .complaint-row above), so
+       hovering to the shared surface tint reads as a clear highlight. */
+    .complaint-row:hover {
+        background-color: var(--color-surface-secondary);
+        transform: scale(1.01);
+    }
+
+    /* The resident page's <article> complaint cards have no background of
+       their own at rest, so hovering them straight to the shared surface
+       tint reads as the same "lift" effect .complaint-row gets. */
+    article[id^="complaint-"]:hover {
+        background-color: var(--color-surface-secondary);
+        transform: scale(1.01);
+    }
+
+    .hoverable-row:hover {
+        background-color: var(--color-surface-secondary);
+        transform: scale(1.01);
+    }
+
+    /* Table rows only get the background change, not the scale — scaling
+       a <tr> inside a bordered table looks broken (it overlaps the row
+       above/below rather than lifting cleanly the way a standalone card
+       or list item does). */
+    table tr:hover {
+        background-color: var(--color-surface-secondary);
+    }
+}
+
+/* Homepage: hero, two audience cards, help note. */
+.home-hero {
+    padding: 2rem 0 1.5rem;
+    text-align: center;
+}
+
+.home-hero h1 {
+    font-size: 2.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.home-lead {
+    max-width: 38rem;
+    margin: 0 auto;
+    font-size: 1.1rem;
+}
+
+.home-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 1.5rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.home-card {
+    background-color: #ffffff;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.home-card ul {
+    flex-grow: 1;
+    padding-left: 1.25rem;
+}
+
+.home-icon {
+    color: var(--pico-primary);
+    margin-bottom: 0.5rem;
+}
+
+.home-help {
+    text-align: center;
+    padding: 1rem 0 2rem;
+}
+
+/* Page-load fade-in + slide-up, CSS only. "both" keeps the pre-animation
+   state (invisible) during any animation-delay, instead of flashing the
+   element in full and then restarting it. */
+@keyframes fade-up {
+    from { opacity: 0; transform: translateY(1rem); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+    animation: fade-up 0.6s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fade-up {
+        animation: none;
+    }
 }

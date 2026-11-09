@@ -31,8 +31,20 @@
             <td>{{ row.reference }}</td>
             <td>{{ row.upi_id }}</td>
             <td>{{ row.reason }}</td>
-            <td>{{ row.suggested_flat_number or 'Not identified' }}</td>
-            <td>{{ row.suggested_owner_name or 'Not identified' }}</td>
+            <td>
+                {% if row.suggested_flat_number %}
+                {{ row.suggested_flat_number }}
+                {% else %}
+                <span class="badge badge-unidentified">Not identified</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if row.suggested_owner_name %}
+                {{ row.suggested_owner_name }}
+                {% else %}
+                <span class="badge badge-unidentified">Not identified</span>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </table>

@@ -53,7 +53,7 @@
         {% if open_complaints %}
         <ul>
             {% for complaint in open_complaints %}
-            <li>
+            <li class="hoverable-row">
                 {{ complaint.description }}
                 <span class="badge badge-{{ complaint.urgency|lower }}">{{ complaint.urgency }}</span>
                 <span class="badge badge-{{ complaint.status|lower|replace(' ', '-') }}">{{ complaint.status }}</span>

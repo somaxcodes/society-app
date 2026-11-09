@@ -6,7 +6,7 @@
     <h1>Staff Complaints</h1>
 
     {% if status_change_notice %}
-    <p style="background-color: #e3f2fd; color: #1a2530; padding: 0.75em; border: 1px solid var(--color-border); border-radius: 0.375rem;">
+    <p style="background-color: var(--color-surface-secondary); color: var(--pico-color); padding: 0.75em; border: 1px solid var(--color-border); border-radius: 0.375rem;">
         Status updated for "{{ status_change_notice.complaint.description }}" ({{ status_change_notice.siblings|length }} related report(s) in the same cluster might need a status update too):
         {% for sibling in status_change_notice.siblings %}
         <a href="#complaint-{{ sibling.id }}">"{{ sibling.description }}"</a>{{ ", " if not loop.last else "" }}

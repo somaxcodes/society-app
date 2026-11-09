@@ -7,18 +7,20 @@
 
     <p>✓ File processed. Here's what happened to each row:</p>
 
-    <div class="stat-row">
-        <div>
-            <p class="stat-value">{{ counts.matched }}</p>
-            <p class="stat-label">Matched automatically</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ counts.needs_review }}</p>
-            <p class="stat-label">Needs manual review</p>
-        </div>
-        <div>
-            <p class="stat-value">{{ counts.duplicate }}</p>
-            <p class="stat-label">Duplicate (already processed)</p>
+    <div class="stat-strip">
+        <div class="stat-row">
+            <div>
+                <p class="stat-value">{{ counts.matched }}</p>
+                <p class="stat-label">Matched automatically</p>
+            </div>
+            <div>
+                <p class="stat-value">{{ counts.needs_review }}</p>
+                <p class="stat-label">Needs manual review</p>
+            </div>
+            <div>
+                <p class="stat-value">{{ counts.duplicate }}</p>
+                <p class="stat-label">Duplicate (already processed)</p>
+            </div>
         </div>
     </div>
 

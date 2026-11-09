@@ -3,30 +3,49 @@
 {% block title %}Society App{% endblock %}
 
 {% block content %}
-    <section>
+    <section class="home-hero fade-up">
         <h1>Society App</h1>
-        <p>
+        <p class="home-lead">
             A simple way for residents and the help-desk staff of this society to
             handle maintenance bills and complaints online. No paperwork, no
             waiting at the office.
         </p>
     </section>
 
-    <section>
-        <h2>What you can do here</h2>
-        <ul>
-            <li>Residents: view your maintenance bill and pay it, and raise or track complaints.</li>
-            <li>Staff: review collections and overdue flats, match bank payments, and manage complaints.</li>
-        </ul>
+    <section class="home-cards">
+        <article class="home-card fade-up" style="animation-delay: 0.1s;">
+            <svg class="home-icon" viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 22 24 7l18 15"/>
+                <path d="M10 20v21h28V20"/>
+                <path d="M20 41V29h8v12"/>
+            </svg>
+            <h2>For Residents</h2>
+            <ul>
+                <li>View your maintenance bill and pay it online</li>
+                <li>Raise a complaint in plain words</li>
+                <li>Track the status of your complaints</li>
+            </ul>
+            <a role="button" href="/login/resident">Resident Login</a>
+        </article>
+
+        <article class="home-card fade-up" style="animation-delay: 0.2s;">
+            <svg class="home-icon" viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="7" width="30" height="35" rx="3"/>
+                <path d="M18 7v-1h12v1"/>
+                <path d="m16 22 3 3 5-6"/>
+                <path d="M16 33h16"/>
+            </svg>
+            <h2>For Staff</h2>
+            <ul>
+                <li>Review collections and overdue flats</li>
+                <li>Match bank payments to flats</li>
+                <li>Manage and prioritise complaints</li>
+            </ul>
+            <a role="button" href="/login/staff" class="secondary">Staff Login</a>
+        </article>
     </section>
 
-    <section class="button-group">
-        <a role="button" href="/login/resident">Resident Login</a>
-        <a role="button" href="/login/staff" class="secondary">Staff Login</a>
-    </section>
-
-    <section>
-        <h2>Need help?</h2>
-        <p>If you have trouble logging in, please contact your society office.</p>
+    <section class="home-help fade-up" style="animation-delay: 0.3s;">
+        <p><strong>Need help?</strong> If you have trouble logging in, please contact your society office.</p>
     </section>
 {% endblock %}
