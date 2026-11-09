@@ -74,4 +74,24 @@ def check_safety_flag(text: str) -> bool:
         if side_a_found and side_b_found:
             return True
 
+    # Structural danger: a danger word alone isn't enough ("my chair is
+    # wobbling" is harmless), but paired with a structural noun it's a
+    # strong signal of a building safety issue. Whole-word matching only,
+    # using the same tokenization as the "fir" fix above, so "cracked my
+    # phone screen" (no structural noun) doesn't trip this.
+    structural_danger_words = [
+        "unstable", "wobbling", "wobbly", "weakening", "collapsing",
+        "collapse", "crumbling", "crack", "cracked", "cracking",
+        "sagging", "bulging",
+    ]
+    structural_nouns = [
+        "railing", "staircase", "stairs", "balcony", "ceiling", "wall",
+        "beam", "support", "roof", "foundation", "pillar",
+    ]
+
+    has_structural_danger_word = any(word in words for word in structural_danger_words)
+    has_structural_noun = any(word in words for word in structural_nouns)
+    if has_structural_danger_word and has_structural_noun:
+        return True
+
     return False
